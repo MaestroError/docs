@@ -261,117 +261,315 @@ echo WeatherAgent::forUser(auth()->user())->respond('How about tomorrow?');
 
 Here are some chainable methods to modify the agent's behavior on the fly:
 
-<Accordion title="Available Chainable Methods">
-```php
-/**
- * Set the message for the agent to process
- */
-public function message(string $message);
-
-/**
- * Add images to the agent's input (message)
- * @param array $imageUrls Array of image URLs
- */
-public function withImages(array $imageUrls);
-
-/**
- * Decide model dynamically in your controller
- * @param string $model Model identifier (e.g., 'gpt-4o', 'gpt-3.5-turbo')
- */
-public function withModel(string $model);
-
-/**
- * Add custom message to the chat history with a needed role
- * @param MessageInterface Easily created with message class: Message::system('Your message here')
- */
-public function addMessage(MessageInterface $message);
-
-/**
- * Clear the chat history 
- * This removes all messages from the chat history
- */
-public function clear();
-
-/**
- * Set other chat history instance
- */
-public function setChatHistory(ChatHistoryInterface $chatHistory);
-
-/**
- * Add tool to the agent's registered tools
- */
-public function withTool(ToolInterface $tool);
-
-/**
- * Remove tool for this specific call
- */
-public function removeTool(string $name);
-
-/**
- * Override the temperature for this specific call
- */
-public function temperature(float $temp);
-```
-</Accordion>
+<AccordionGroup>
+  <Accordion title="message() - Set the message">
+  ```php
+  /**
+   * Set the message for the agent to process
+   */
+  public function message(string $message);
+  ```
+  
+  Sets the message that will be sent to the AI model.
+  
+  ```php
+  // Example
+  $agent = WeatherAgent::for('test_chat');
+  $agent->message('What is the weather like today?')->respond();
+  ```
+  </Accordion>
+  
+  <Accordion title="withImages() - Add images">
+  ```php
+  /**
+   * Add images to the agent's input (message)
+   * @param array $imageUrls Array of image URLs
+   */
+  public function withImages(array $imageUrls);
+  ```
+  
+  Adds images to the message for multimodal models.
+  
+  ```php
+  // Example
+  $agent->message('What's in this image?')
+        ->withImages(['https://example.com/image.jpg'])
+        ->respond();
+  ```
+  </Accordion>
+  
+  <Accordion title="withModel() - Change model">
+  ```php
+  /**
+   * Decide model dynamically in your controller
+   * @param string $model Model identifier (e.g., 'gpt-4o', 'gpt-3.5-turbo')
+   */
+  public function withModel(string $model);
+  ```
+  
+  Overrides the default model for this specific call.
+  
+  ```php
+  // Example
+  $agent->message('Complex question')
+        ->withModel('gpt-4o')
+        ->respond();
+  ```
+  </Accordion>
+  
+  <Accordion title="addMessage() - Add custom message">
+  ```php
+  /**
+   * @param MessageInterface 
+   */
+  public function addMessage(MessageInterface $message);
+  ```
+  
+  Adds a custom message to the chat history. MessageInterface: Easily created with Message class: `Message::system('Your message here')`
+  
+  ```php
+  // Example
+  use LarAgent\Message;
+  
+  $agent->addMessage(Message::system('Remember to be concise'))
+        ->message('Explain quantum computing')
+        ->respond();
+  ```
+  </Accordion>
+  
+  <Accordion title="clear() - Clear history">
+  ```php
+  public function clear();
+  ```
+  
+Clear the chat history. This removes all messages from the chat history
+  
+  ```php
+  // Example
+  $agent->clear()->message("Let's start fresh")->respond();
+  ```
+  </Accordion>
+  
+  <Accordion title="setChatHistory() - Change history">
+  ```php
+  /**
+   * Set other chat history instance
+   */
+  public function setChatHistory(ChatHistoryInterface $chatHistory);
+  ```
+  
+  Replaces the current chat history with a different instance.
+  
+  ```php
+  // Example
+  $newHistory = new CacheChatHistory('backup-chat');
+  $agent->setChatHistory($newHistory)->respond('Continue from backup');
+  ```
+  </Accordion>
+  
+  <Accordion title="withTool() - Add tool">
+  ```php
+  /**
+   * Add tool to the agent's registered tools
+   */
+  public function withTool(ToolInterface $tool);
+  ```
+  
+  Adds a tool for this specific call.
+  
+  ```php
+  // Example
+  $weatherTool = new WeatherTool();
+  $agent->withTool($weatherTool)
+        ->message("What's the weather in New York?")
+        ->respond();
+  ```
+  </Accordion>
+  
+  <Accordion title="removeTool() - Remove tool">
+  ```php
+  /**
+   * Remove tool for this specific call
+   */
+  public function removeTool(string $name);
+  ```
+  
+  Removes a tool for this specific call.
+  
+  ```php
+  // Example
+  $agent->removeTool('get_weather')
+        ->message('Tell me a story without checking the weather')
+        ->respond();
+  ```
+  </Accordion>
+  
+  <Accordion title="temperature() - Adjust creativity">
+  ```php
+  /**
+   * Override the temperature for this specific call
+   */
+  public function temperature(float $temp);
+  ```
+  
+  Controls the randomness of the response (0.0 for focused, 2.0 for creative).
+  
+  ```php
+  // Example
+  $agent->temperature(1.5)  // More creative response
+        ->message('Write a poem about AI')
+        ->respond();
+  ```
+  </Accordion>
+</AccordionGroup>
 
 ## Agent Accessors
 
 You can access the agent's properties using these methods on an instance of the agent:
 
-<CodeGroup>
-```php Session and Provider
-/**
- * Get the current chat session ID
- * String like "[AGENT_NAME]_[MODEL_NAME]_[CHAT_NAME]"
- * CHAT_NAME is defined by "for" method
- * Example: WeatherAgent_gtp-4o-mini_test-chat
- */
-public function getChatSessionId(): string;
-
-/**
- * Returns the provider name
- */
-public function getProviderName(): string;
-```
-
-```php Tools and History
-/**
- * Returns an array of registered tools
- */
-public function getTools(): array;
-
-/**
- * Returns current chat history instance
- */
-public function chatHistory(): ChatHistoryInterface;
-```
-
-```php Messages
-/**
- * Returns the current message
- */
-public function currentMessage(): ?string;
-
-/**
- * Returns the last message
- */
-public function lastMessage(): ?MessageInterface;
-
-/**
- * Get all chat keys associated with this agent class
- */
-public function getChatKeys(): array;
-```
-</CodeGroup>
+<AccordionGroup>
+  <Accordion title="getChatSessionId() - Get session ID">
+  ```php
+  /**
+   * Get the current chat session ID
+   * String like "[AGENT_NAME]_[MODEL_NAME]_[CHAT_NAME]"
+   * CHAT_NAME is defined by "for" method
+   * Example: WeatherAgent_gtp-4o-mini_test-chat
+   */
+  public function getChatSessionId(): string;
+  ```
+  
+  Returns the unique identifier for the current chat session.
+  
+  ```php
+  // Example
+  $sessionId = $agent->getChatSessionId();
+  // Returns: "WeatherAgent_gtp-4o-mini_user-123"
+  ```
+  </Accordion>
+  
+  <Accordion title="getProviderName() - Get provider">
+  ```php
+  /**
+   * Returns the provider name
+   */
+  public function getProviderName(): string;
+  ```
+  
+  Returns the name of the AI provider being used.
+  
+  ```php
+  // Example
+  $provider = $agent->getProviderName();
+  // Returns: "openai" or other provider name
+  ```
+  </Accordion>
+  
+  <Accordion title="getTools() - Get tools">
+  ```php
+  /**
+   * Returns an array of registered tools
+   */
+  public function getTools(): array;
+  ```
+  
+  Returns all tools registered with the agent.
+  
+  ```php
+  // Example
+  $tools = $agent->getTools();
+  foreach ($tools as $tool) {
+      echo $tool->getName() . "\n";
+  }
+  ```
+  </Accordion>
+  
+  <Accordion title="chatHistory() - Get history">
+  ```php
+  /**
+   * Returns current chat history instance
+   */
+  public function chatHistory(): ChatHistoryInterface;
+  ```
+  
+  Returns the current chat history instance.
+  
+  ```php
+  // Example
+  $history = $agent->chatHistory();
+  $messageCount = $history->count();
+  ```
+  </Accordion>
+  
+  <Accordion title="currentMessage() - Get current message">
+  ```php
+  /**
+   * Returns the current message
+   */
+  public function currentMessage(): ?string;
+  ```
+  
+  Returns the message currently being processed.
+  
+  ```php
+  // Example
+  $message = $agent->currentMessage();
+  if ($message) {
+      echo "Processing: " . $message;
+  }
+  ```
+  </Accordion>
+  
+  <Accordion title="lastMessage() - Get last message">
+  ```php
+  /**
+   * Returns the last message
+   */
+  public function lastMessage(): ?MessageInterface;
+  ```
+  
+  Returns the last message in the chat history.
+  
+  ```php
+  // Example
+  $lastMessage = $agent->lastMessage();
+  if ($lastMessage) {
+      echo "Last message role: " . $lastMessage->getRole();
+      echo "Last message content: " . $lastMessage->getContent();
+  }
+  ```
+  </Accordion>
+  
+  <Accordion title="getChatKeys() - Get all chat keys">
+  ```php
+  /**
+   * Get all chat keys associated with this agent class
+   */
+  public function getChatKeys(): array;
+  ```
+  
+  Returns all chat keys associated with this agent class.
+  
+  ```php
+  // Example
+  $chatKeys = $agent->getChatKeys();
+  // Returns: ["user_1_chat", "user_2_chat", ...]
+  
+  // You can use this to list all active conversations
+  foreach ($chatKeys as $key) {
+      echo "Active chat: " . $key . "\n";
+  }
+  ```
+  </Accordion>
+</AccordionGroup>
 
 ### Example Configuration
 
-<Frame>
 ```php
 class WeatherAgent extends Agent
 {
-    protected $model = 'gpt-4';
-    protected $history = 'cache';
+    protected $model = 'gpt-4o';
+    protected $history = 'session';
     protected $temperature = 0.7;
     
     public function instructions()
@@ -385,4 +583,3 @@ class WeatherAgent extends Agent
     }
 }
 ```
-</Frame>
