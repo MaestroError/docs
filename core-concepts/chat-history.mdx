@@ -1,0 +1,237 @@
+---
+title: "Chat History"
+description: "Chat history stores conversations between users and agents, enabling context-aware interactions across multiple sessions."
+---
+
+<Note>
+Chat history is a crucial component that allows your agents to maintain context across multiple interactions, providing a more natural and coherent conversation experience.
+</Note>
+
+## Built-in Chat Histories
+
+LarAgent provides several built-in chat history implementations to suit different needs:
+
+<Tabs>
+  <Tab title="In Laravel">
+  ```php
+  // Stores chat history temporarily in memory (lost after request)
+  protected $history = 'in_memory';  
+  
+  // Uses Laravel's session storage
+  protected $history = 'session';    
+  
+  // Uses Laravel's cache system
+  protected $history = 'cache';      
+  
+  // Stores in files (storage/app/chat-histories)
+  protected $history = 'file';       
+  
+  // Stores in JSON files (storage/app/chat-histories)
+  protected $history = 'json';       
+  ```
+  </Tab>
+  <Tab title="Outside Laravel">
+  ```php
+  // Stores chat history in memory
+  protected $history = LarAgent\History\InMemoryChatHistory::class
+  
+  // Stores in JSON files
+  protected $history = LarAgent\History\JsonChatHistory::class
+  ```
+  </Tab>
+</Tabs>
+
+## Chat History Configuration
+
+You can configure how chat history behaves using these properties in your Agent class:
+
+### Reinjecting Instructions
+
+```php
+/** @var int - Number of messages after which to reinject the agent's instructions */
+protected $reinjectInstructionsPer;
+```
+
+Instructions are always injected at the beginning of the chat history. The `$reinjectInstructionsPer` property defines when to reinject these instructions to ensure the agent stays on track. By default, it's set to `0` (disabled).
+
+<Tip>
+Reinjecting instructions can be useful for long conversations where the agent might drift from its original purpose or forget important constraints.
+</Tip>
+
+### Managing Context Window Size
+
+```php
+/** @var int - Maximum number of tokens to keep in context window */
+protected $contextWindowSize;
+```
+
+After the context window is exceeded, the oldest messages are removed until the context window is satisfied or the limit is reached. This helps manage token usage and ensures the conversation stays within the model's context limits.
+
+<Frame>
+  <img src="/images/context-window-diagram.png" alt="Context Window Management" />
+  <figcaption>How context window management works in LarAgent</figcaption>
+</Frame>
+
+You can implement custom logic for context window management using events and the chat history instance inside your agent.
+
+## Using Chat History
+
+### Per-User Chat History
+
+One of the most common use cases is maintaining separate chat histories for different users:
+
+```php
+// Create a chat history for a specific user
+$response = MyAgent::forUser(auth()->user())->respond('Hello, how can you help me?');
+
+// Later, the same user continues the conversation
+$response = MyAgent::forUser(auth()->user())->respond('Can you explain more about that?');
+```
+
+### Named Chat Histories
+
+You can also create named chat histories for specific contexts or topics:
+
+```php
+// Start a conversation about weather
+$response = MyAgent::for('weather_chat')->respond('What's the weather like today?');
+
+// Start a separate conversation about recipes
+$response = MyAgent::for('recipe_chat')->respond('How do I make pasta carbonara?');
+
+// Continue the weather conversation
+$response = MyAgent::for('weather_chat')->respond('Will it rain tomorrow?');
+```
+
+## Accessing and Managing Chat History
+
+LarAgent provides several methods to access and manage chat history:
+
+<CodeGroup>
+```php Accessing History
+// Get the current chat history instance
+$history = $agent->chatHistory();
+
+// Get all messages in the chat history
+$messages = $history->getMessages();
+
+// Get the last message
+$lastMessage = $history->getLastMessage();
+
+// Count messages in history
+$count = $history->count();
+```
+
+```php Managing History
+// Clear the current chat history
+$agent->clear();
+
+// Set a different chat history instance
+$agent->setChatHistory(new CustomChatHistory('custom_id'));
+
+// Get all chat keys associated with this agent class
+$chatKeys = $agent->getChatKeys();
+```
+</CodeGroup>
+
+## Creating Custom Chat Histories
+
+You can create custom chat history implementations by implementing the `ChatHistoryInterface`:
+
+<Accordion title="Custom Chat History Example">
+```php
+use LarAgent\Contracts\ChatHistoryInterface;
+use LarAgent\Messages\MessageInterface;
+
+class DatabaseChatHistory implements ChatHistoryInterface
+{
+    protected string $identifier;
+    
+    public function __construct(string $identifier)
+    {
+        $this->identifier = $identifier;
+    }
+    
+    public function add(MessageInterface $message): void
+    {
+        // Store message in database
+        DB::table('chat_messages')->insert([
+            'chat_id' => $this->identifier,
+            'role' => $message->getRole(),
+            'content' => $message->getContent(),
+            'created_at' => now(),
+        ]);
+    }
+    
+    public function getMessages(): array
+    {
+        // Retrieve messages from database
+        $dbMessages = DB::table('chat_messages')
+            ->where('chat_id', $this->identifier)
+            ->orderBy('created_at')
+            ->get();
+            
+        // Convert to MessageInterface objects
+        return $dbMessages->map(function ($msg) {
+            return new Message($msg->role, $msg->content);
+        })->toArray();
+    }
+    
+    public function getIdentifier(): string
+    {
+        return $this->identifier;
+    }
+    
+    public function getLastMessage(): ?MessageInterface
+    {
+        // Get the last message from database
+        $lastMsg = DB::table('chat_messages')
+            ->where('chat_id', $this->identifier)
+            ->orderBy('created_at', 'desc')
+            ->first();
+            
+        if (!$lastMsg) {
+            return null;
+        }
+        
+        return new Message($lastMsg->role, $lastMsg->content);
+    }
+    
+    public function count(): int
+    {
+        return DB::table('chat_messages')
+            ->where('chat_id', $this->identifier)
+            ->count();
+    }
+    
+    public function clear(): void
+    {
+        DB::table('chat_messages')
+            ->where('chat_id', $this->identifier)
+            ->delete();
+    }
+}
+```
+</Accordion>
+
+## Best Practices
+
+<Check>
+**Do** choose the appropriate chat history implementation based on your needs (persistence, performance, etc.)
+</Check>
+
+<Check>
+**Do** set a reasonable context window size to balance coherence and token usage
+</Check>
+
+<Check>
+**Do** use unique identifiers for chat histories to prevent cross-contamination
+</Check>
+
+<X>
+**Don't** store sensitive information in chat histories without proper encryption
+</X>
+
+<X>
+**Don't** neglect to clear chat histories when they're no longer needed
+</X>

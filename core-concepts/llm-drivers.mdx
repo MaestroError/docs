@@ -1,0 +1,227 @@
+---
+title: "LLM Drivers"
+description: "LLM Drivers provide a flexible interface to connect with different AI providers while maintaining a consistent API for your application."
+---
+
+<Note>
+LLM Drivers allow you to switch between different AI providers (like OpenAI, Ollama, or OpenRouter) without changing your application code, providing flexibility and vendor independence.
+</Note>
+
+## Understanding LLM Drivers
+
+LarAgent provides a `LlmDriver` interface that allows you to implement custom LLM drivers for different providers. The built-in drivers implement this interface and provide a simple way to use various AI APIs with a consistent interface.
+
+<Frame>
+  <img src="/images/llm-drivers-diagram.png" alt="LLM Drivers Architecture" />
+  <figcaption>How LLM Drivers abstract away provider-specific implementations</figcaption>
+</Frame>
+
+## Configuring Drivers
+
+You can configure LLM drivers in two ways:
+
+### 1. Global Configuration
+
+Set drivers in the configuration file (`config/laragent.php`):
+
+```php
+'providers' => [
+    'default' => [
+        'label' => 'openai',
+        'api_key' => env('OPENAI_API_KEY'),
+        'driver' => \LarAgent\Drivers\OpenAi\OpenAiDriver::class,
+    ],
+    'alternative' => [
+        'label' => 'alternative-provider',
+        'api_key' => env('ALTERNATIVE_API_KEY'),
+        'driver' => \LarAgent\Drivers\OpenAi\OpenAiCompatible::class,
+        // Additional provider-specific settings
+    ],
+],
+```
+
+### 2. Per-Agent Configuration
+
+Set the driver directly in your agent class:
+
+```php
+namespace App\AiAgents;
+
+use LarAgent\Agent;
+use LarAgent\Drivers\OpenAi\OpenAiCompatible;
+
+class CustomAgent extends Agent
+{
+    protected $driver = OpenAiCompatible::class;
+    protected $provider = 'alternative';
+    // Other agent configuration
+}
+```
+
+## Available Drivers
+
+<CardGroup cols={2}>
+  <Card title="OpenAiDriver" icon="openai">
+    Default driver for OpenAI API. Works with minimal configuration - just add your `OPENAI_API_KEY` to your `.env` file.
+  </Card>
+  <Card title="OpenAiCompatible" icon="plug">
+    Works with any OpenAI-compatible provider, allowing you to use alternative backends with the same API format.
+  </Card>
+</CardGroup>
+
+## Example Configurations
+
+### Ollama (Local LLM)
+
+<Accordion title="Ollama Configuration">
+```php
+// File: config/laragent.php
+'providers' => [
+    'ollama' => [
+        'label' => 'ollama-local',
+        'driver' => \LarAgent\Drivers\OpenAi\OpenAiCompatible::class,
+        'api_key' => 'ollama', // Can be any string for Ollama
+        'api_url' => "http://localhost:11434/v1",
+        'default_context_window' => 50000,
+        'default_max_completion_tokens' => 100,
+        'default_temperature' => 1,
+    ],
+],
+```
+
+```php
+// In your agent class
+protected $provider = 'ollama';
+protected $model = 'llama2'; // Or any other model available in your Ollama instance
+```
+</Accordion>
+
+### OpenRouter
+
+<Accordion title="OpenRouter Configuration">
+```php
+// File: config/laragent.php
+'providers' => [
+    'openrouter' => [
+        'label' => 'openrouter-provider',
+        'driver' => \LarAgent\Drivers\OpenAi\OpenAiCompatible::class,
+        'api_key' => env('OPENROUTER_API_KEY'),
+        'api_url' => "https://api.openrouter.ai/api/v1",
+        'default_context_window' => 50000,
+        'default_max_completion_tokens' => 100,
+        'default_temperature' => 1,
+    ],
+],
+```
+
+```php
+// In your agent class
+protected $provider = 'openrouter';
+protected $model = 'anthropic/claude-3-opus'; // Or any other model available on OpenRouter
+```
+</Accordion>
+
+## Using Multiple Providers
+
+You can configure multiple providers and switch between them as needed:
+
+```php
+// Configure different agents to use different providers
+class CreativeAgent extends Agent
+{
+    protected $provider = 'anthropic'; // Points to a provider in your config
+    protected $model = 'claude-3-opus';
+}
+
+class EconomicalAgent extends Agent
+{
+    protected $provider = 'openai';
+    protected $model = 'gpt-3.5-turbo';
+}
+```
+
+You can also switch providers at runtime:
+
+```php
+// Switch provider based on user preference or other conditions
+$provider = $user->premium ? 'premium-provider' : 'standard-provider';
+$agent = MyAgent::for('chat-session')
+    ->withProvider($provider)
+    ->respond('Hello, how can you help me?');
+```
+
+## Creating Custom Drivers
+
+If you need to integrate with an AI provider that doesn't have a built-in driver, you can create your own by implementing the `LlmDriver` interface:
+
+<Accordion title="Custom Driver Example">
+```php
+namespace App\LlmDrivers;
+
+use LarAgent\Contracts\LlmDriver;
+use LarAgent\Messages\MessageInterface;
+
+class CustomProviderDriver implements LlmDriver
+{
+    protected $apiKey;
+    protected $apiUrl;
+    
+    public function __construct(array $config)
+    {
+        $this->apiKey = $config['api_key'];
+        $this->apiUrl = $config['api_url'] ?? 'https://api.customprovider.com';
+    }
+    
+    public function chat(array $messages, array $options = [])
+    {
+        // Implement the API call to your custom provider
+        // Transform messages and options to the format expected by your provider
+        // Return the response in a standardized format
+    }
+    
+    public function chatStream(array $messages, array $options = [])
+    {
+        // Implement streaming for your custom provider
+    }
+    
+    // Implement other required methods...
+}
+```
+
+Then register your custom driver in the configuration:
+
+```php
+// config/laragent.php
+'providers' => [
+    'custom' => [
+        'label' => 'my-custom-provider',
+        'driver' => \App\LlmDrivers\CustomProviderDriver::class,
+        'api_key' => env('CUSTOM_PROVIDER_API_KEY'),
+        'api_url' => env('CUSTOM_PROVIDER_API_URL'),
+        // Any other configuration your driver needs
+    ],
+],
+```
+</Accordion>
+
+## Best Practices
+
+<Check>
+**Do** store API keys in environment variables, never hardcode them
+</Check>
+
+<Check>
+**Do** set reasonable defaults for context window and token limits
+</Check>
+
+<Check>
+**Do** consider implementing fallback mechanisms between providers
+</Check>
+
+<X>
+**Don't** expose sensitive provider configuration in client-side code
+</X>
+
+<X>
+**Don't** assume all providers support the same features (like function calling or parallel tool execution)
+</X>

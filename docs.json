@@ -3,15 +3,15 @@
   "theme": "mint",
   "name": "Mint Starter Kit",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#095d65",
+    "light": "#1abc9c",
+    "dark": "#095d65"
   },
   "favicon": "/favicon.svg",
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
             "group": "Get Started",
@@ -22,7 +22,19 @@
             ]
           },
           {
-            "group": "Essentials",
+            "group": "Core concepts",
+            "pages": [
+              "core-concepts/agents",
+              "core-concepts/tools",
+              "core-concepts/chat-history",
+              "core-concepts/structured-output",
+              "core-concepts/streaming",
+              "core-concepts/llm-drivers",
+              "core-concepts/usage-without-laravel"
+            ]
+          },
+          {
+            "group": "essentials",
             "pages": [
               "essentials/markdown",
               "essentials/code",
@@ -76,8 +88,8 @@
     }
   },
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "light": "/logo/light.png",
+    "dark": "/logo/dark.png"
   },
   "navbar": {
     "links": [

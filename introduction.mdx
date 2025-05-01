@@ -1,43 +1,8 @@
 ---
 title: Introduction
-description: "Welcome to the home of your new documentation"
+description: "LarAgent brings the power of AI agents to your Laravel projects with an elegant syntax. Create, extend, and manage AI agents with ease while maintaining Laravel's fluent API design patterns."
 ---
 
-<img
-  className="block dark:hidden"
-  src="/images/hero-light.png"
-  alt="Hero Light"
-/>
-<img
-  className="hidden dark:block"
-  src="/images/hero-dark.png"
-  alt="Hero Dark"
-/>
-
-## Setting up
-
-The first step to world-class documentation is setting up your editing environments.
-
-<CardGroup cols={2}>
-  <Card
-    title="Edit Your Docs"
-    icon="pen-to-square"
-    href="https://mintlify.com/docs/quickstart"
-  >
-    Get your docs set up locally for easy development
-  </Card>
-  <Card
-    title="Preview Changes"
-    icon="image"
-    href="https://mintlify.com/docs/development"
-  >
-    Preview your changes before you push to make sure they're perfect
-  </Card>
-</CardGroup>
-
-## Make it yours
-
-Update your docs to your brand and add valuable content for the best user conversion.
 
 <CardGroup cols={2}>
   <Card
@@ -69,3 +34,98 @@ Update your docs to your brand and add valuable content for the best user conver
     Check out our showcase of our favorite documentation
   </Card>
 </CardGroup>
+
+
+## Idea
+
+What if you can create AI agents just like you create any other Eloquent model?
+
+Why not?! 👇
+
+```bash
+php artisan make:agent YourAgentName
+```
+
+And it looks familiar, isn't it?
+
+```php
+namespace App\AiAgents;
+
+use LarAgent\Agent;
+
+class YourAgentName extends Agent
+{
+    protected $model = 'gpt-4';
+
+    protected $history = 'in_memory';
+
+    protected $provider = 'default';
+
+    protected $tools = [];
+
+    public function instructions()
+    {
+        return "Define your agent's instructions here.";
+    }
+
+    public function prompt($message)
+    {
+        return $message;
+    }
+}
+
+```
+
+And you can tweak the configs, like `history`
+
+```php
+// ...
+protected $history = \LarAgent\History\CacheChatHistory::class;
+// ...
+```
+
+Or add `temperature`:
+
+```php
+// ...
+protected $temperature = 0.5;
+// ...
+```
+
+Even disable parallel tool calls:
+
+```php
+// ...
+protected $parallelToolCalls = false;
+// ...
+```
+
+Oh, and add a new tool as well:
+
+```php
+// ...
+#[Tool('Get the current weather in a given location')]
+public function exampleWeatherTool($location, $unit = 'celsius')
+{
+    return 'The weather in '.$location.' is '.'20'.' degrees '.$unit;
+}
+// ...
+```
+
+And run it, per user:
+
+```php
+Use App\AiAgents\YourAgentName;
+// ...
+YourAgentName::forUser(auth()->user())->respond($message);
+```
+
+Or use a custom name for the chat history:
+
+```php
+Use App\AiAgents\YourAgentName;
+// ...
+YourAgentName::for("custom_history_name")->respond($message);
+```
+
+Let's check the [quickstart](/quickstart) page 👍

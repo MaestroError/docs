@@ -1,0 +1,216 @@
+---
+title: "Tools"
+description: "Tools extend your agent's capabilities, allowing it to perform tasks like sending messages, making API calls, or executing commands."
+---
+
+<Note>
+Tools (also known as function calling) allow your AI agents to interact with external systems, APIs, and services, greatly expanding their capabilities beyond simple text generation.
+</Note>
+
+## Tool Configuration
+
+Tools in LarAgent can be configured using these properties in your Agent class:
+
+```php
+/** @var bool - Controls whether tools can be executed in parallel */
+protected $parallelToolCalls;
+
+/** @var array - List of tool classes to be registered with the agent */
+protected $tools = [];
+```
+
+<Tip>
+You can set `$parallelToolCalls` to `null` if you want to remove it from the request, as some models do not support parallel tool calls.
+</Tip>
+
+## Creating Tools
+
+There are three ways to create and register tools in your agent:
+
+### 1. Using the #[Tool] Attribute
+
+The simplest approach is using the `#[Tool]` attribute to transform your agent's methods into tools:
+
+<CodeGroup>
+```php Basic Tool
+use LarAgent\Attributes\Tool;
+
+#[Tool('Get the current weather in a given location')]
+public function weatherTool($location, $unit = 'celsius')
+{
+    return 'The weather in '.$location.' is '.'20'.' degrees '.$unit;
+}
+```
+
+```php Tool with Parameter Descriptions
+use LarAgent\Attributes\Tool;
+
+#[Tool(
+    'Get the current weather in a given location',
+    [
+        'location' => 'The city and state, e.g. San Francisco, CA',
+        'unit' => 'Unit of temperature'
+    ]
+)]
+public function weatherTool($location, $unit = 'celsius')
+{
+    return 'The weather in '.$location.' is '.'20'.' degrees '.$unit;
+}
+```
+</CodeGroup>
+
+The agent will automatically register the tool with the given description and extract method information, including parameter names and types.
+
+### 2. Using Enum Types with Tools
+
+You can use PHP Enums to provide the AI with a specific set of options to choose from:
+
+<Frame>
+```php
+// Define an Enum
+namespace App\Enums;
+
+enum Unit: string
+{
+    case CELSIUS = 'celsius';
+    case FAHRENHEIT = 'fahrenheit';
+}
+
+// Use it in your Agent
+use LarAgent\Attributes\Tool;
+use App\Enums\Unit;
+
+#[Tool(
+    'Get the current weather in a given location',
+    [
+        'unit' => 'Unit of temperature', 
+        'location' => 'The city and state, e.g. San Francisco, CA'
+    ]
+)]
+public static function weatherToolForNewYork(Unit $unit, $location = 'New York')
+{
+    return WeatherService::getWeather($location, $unit->value);
+}
+```
+</Frame>
+
+<Tip>
+It's recommended to use the `#[Tool]` attribute with static methods if there's no need for the agent instance (`$this`).
+</Tip>
+
+### 3. Using the registerTools Method
+
+This method allows you to programmatically create and register tools using the `LarAgent\Tool` class:
+
+```php
+use LarAgent\Tool;
+
+public function registerTools() 
+{
+    $user = auth()->user();
+    return [
+        Tool::create("user_location", "Returns user's current location")
+             ->setCallback(function () use ($user) {
+                  return $user->location()->city;
+             }),
+        Tool::create("get_current_weather", "Returns the current weather in a given location")
+             ->addProperty("location", "string", "The city and state, e.g. San Francisco, CA")
+             ->setCallback("getWeather"),
+    ];
+}
+```
+
+### 4. Using Tool Classes
+
+For complex tools, you can create dedicated tool classes and add them to the `$tools` property:
+
+```php
+protected $tools = [
+    WeatherTool::class,
+    LocationTool::class
+];
+```
+
+<Accordion title="Example Tool Class">
+```php
+class WeatherTool extends LarAgent\Tool
+{
+    protected string $name = 'get_current_weather';
+
+    protected string $description = 'Get the current weather in a given location';
+
+    protected array $properties = [
+        'location' => [
+            'type' => 'string',
+            'description' => 'The city and state, e.g. San Francisco, CA',
+        ],
+        'unit' => [
+            'type' => 'string',
+            'description' => 'The unit of temperature',
+            'enum' => ['celsius', 'fahrenheit'],
+        ],
+    ];
+
+    protected array $required = ['location'];
+
+    protected array $metaData = ['sent_at' => '2024-01-01'];
+
+    public function execute(array $input): mixed
+    {
+        // Call the weather API
+        return 'The weather in '.$input['location'].' is '.rand(10, 60).' degrees '.$input['unit'];
+    }
+}
+```
+</Accordion>
+
+## When to Use Each Approach
+
+<CardGroup cols={2}>
+  <Card title="#[Tool] Attribute" icon="wand-magic-sparkles">
+    Best for simple tools with minimal logic that are specific to a single agent.
+  </Card>
+  <Card title="registerTools Method" icon="code">
+    Ideal for dynamically creating tools based on runtime conditions or user state.
+  </Card>
+  <Card title="Tool Classes" icon="puzzle-piece">
+    Perfect for complex tools that may be reused across multiple agents or require extensive logic.
+  </Card>
+  <Card title="Enum Integration" icon="list-check">
+    Use when you need to restrict the AI to specific predefined options.
+  </Card>
+</CardGroup>
+
+## Chainable Tool Methods
+
+You can dynamically add or remove tools during runtime using these methods:
+
+```php
+// Add a tool for this specific call
+$agent->withTool(new WeatherTool());
+
+// Remove a tool for this specific call
+$agent->removeTool('get_current_weather');
+```
+
+## Best Practices
+
+<Check>
+**Do** create separate tool classes for complex functionality that might be reused
+</Check>
+
+<Check>
+**Do** provide clear, descriptive names and parameter descriptions
+</Check>
+
+<Check>
+**Do** use Enums when you need to restrict the AI to specific options
+</Check>
+
+<X>
+**Don't** create tools with ambiguous functionality or unclear parameter requirements
+</X>
+
+<X>
+**Don't** expose sensitive operations without proper validation and security checks
+</X>

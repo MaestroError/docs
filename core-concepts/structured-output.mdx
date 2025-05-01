@@ -1,0 +1,231 @@
+---
+title: "Structured Output"
+description: "Define JSON schemas to receive structured, predictable responses from your AI agents instead of free-form text."
+---
+
+<Note>
+Structured output allows you to define a specific JSON schema that your AI responses must conform to, making it easier to integrate AI-generated content with your application logic.
+</Note>
+
+## Defining Response Schemas
+
+You can define the response schema in your agent class using the `$responseSchema` property:
+
+<CodeGroup>
+```php Basic Schema
+protected $responseSchema = [
+    'name' => 'weather_info',
+    'schema' => [
+        'type' => 'object',
+        'properties' => [
+            'temperature' => [
+                'type' => 'number',
+                'description' => 'Temperature in degrees'
+            ],
+        ],
+        'required' => ['temperature'],
+        'additionalProperties' => false,
+    ],
+    'strict' => true,
+];
+```
+
+```php Complex Schema
+public function structuredOutput()
+{
+    return [
+        'name' => 'weather_info',
+        'schema' => [
+            'type' => 'object',
+            'properties' => [
+                'temperature' => [
+                    'type' => 'number',
+                    'description' => 'Temperature in degrees'
+                ],
+                'conditions' => [
+                    'type' => 'string',
+                    'description' => 'Weather conditions (e.g., sunny, rainy)'
+                ],
+                'forecast' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'day' => ['type' => 'string'],
+                            'temp' => ['type' => 'number']
+                        ],
+                        'required' => ['day', 'temp'],
+                        'additionalProperties' => false,
+                    ],
+                    'description' => '5-day forecast'
+                ]
+            ],
+            'required' => ['temperature', 'conditions'],
+            'additionalProperties' => false,
+        ],
+        'strict' => true,
+    ];
+}
+```
+</CodeGroup>
+
+<Tip>
+For complex schemas, it's recommended to use the `structuredOutput()` method instead of the property, as it provides more flexibility and can include dynamic logic.
+</Tip>
+
+## Schema Configuration Options
+
+The schema follows the JSON Schema specification and supports all its features:
+
+<CardGroup cols={2}>
+  <Card title="Basic Types" icon="code">
+    string, number, boolean, array, object
+  </Card>
+  <Card title="Required Properties" icon="asterisk">
+    Specify which fields must be present
+  </Card>
+  <Card title="Nested Structures" icon="layer-group">
+    Complex objects and arrays
+  </Card>
+  <Card title="Property Descriptions" icon="comment">
+    Guide the AI on what each field should contain
+  </Card>
+</CardGroup>
+
+<Warning>
+Pay attention to the `required`, `additionalProperties`, and `strict` properties. It's recommended by OpenAI to set these when defining schemas to get exactly the structure you need.
+</Warning>
+
+## Using Structured Output
+
+When structured output is defined, the agent's response will be automatically formatted and returned as an array according to the schema:
+
+<Frame>
+```php
+// Example response when using the complex schema above
+$response = $agent->respond("What's the weather like today?");
+
+// Returns:
+[
+    'temperature' => 25.5,
+    'conditions' => 'sunny',
+    'forecast' => [
+        ['day' => 'tomorrow', 'temp' => 28],
+        ['day' => 'Wednesday', 'temp' => 24]
+    ]
+]
+```
+</Frame>
+
+## Runtime Schema Management
+
+The schema can be accessed or modified using the `structuredOutput()` method at runtime:
+
+```php
+// Get current schema
+$schema = $agent->structuredOutput();
+
+// Check if structured output is enabled
+if ($agent->structuredOutput()) {
+    // Handle structured response
+}
+```
+
+## Example Use Cases
+
+<AccordionGroup>
+  <Accordion title="User Profile Generation">
+    ```php
+    protected $responseSchema = [
+        'name' => 'user_profile',
+        'schema' => [
+            'type' => 'object',
+            'properties' => [
+                'name' => ['type' => 'string'],
+                'age' => ['type' => 'number'],
+                'interests' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'string']
+                ],
+            ],
+            'required' => ['name', 'age', 'interests'],
+        ],
+    ];
+    ```
+  </Accordion>
+  <Accordion title="Product Recommendations">
+    ```php
+    protected $responseSchema = [
+        'name' => 'product_recommendations',
+        'schema' => [
+            'type' => 'object',
+            'properties' => [
+                'products' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'id' => ['type' => 'string'],
+                            'name' => ['type' => 'string'],
+                            'reason' => ['type' => 'string'],
+                            'score' => ['type' => 'number'],
+                        ],
+                        'required' => ['id', 'name', 'reason'],
+                    ],
+                ],
+                'category' => ['type' => 'string'],
+            ],
+            'required' => ['products', 'category'],
+        ],
+    ];
+    ```
+  </Accordion>
+  <Accordion title="Content Analysis">
+    ```php
+    protected $responseSchema = [
+        'name' => 'content_analysis',
+        'schema' => [
+            'type' => 'object',
+            'properties' => [
+                'sentiment' => [
+                    'type' => 'string',
+                    'enum' => ['positive', 'neutral', 'negative'],
+                ],
+                'topics' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'string'],
+                ],
+                'summary' => ['type' => 'string'],
+                'keyPoints' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'string'],
+                ],
+            ],
+            'required' => ['sentiment', 'topics', 'summary'],
+        ],
+    ];
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Check>
+**Do** make your schema as specific as possible to get predictable results
+</Check>
+
+<Check>
+**Do** include descriptive property descriptions to guide the AI
+</Check>
+
+<Check>
+**Do** set `additionalProperties` to `false` when you want to restrict the output to only the defined properties
+</Check>
+
+<X>
+**Don't** create overly complex schemas that the AI might struggle to fulfill
+</X>
+
+<X>
+**Don't** forget to set the `required` property for fields that must be present
+</X>

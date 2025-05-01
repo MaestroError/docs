@@ -1,0 +1,388 @@
+---
+title: "Agents"
+description: "Agents are the core of LarAgent. They represent an AI model that can be used to interact with users, systems, or any other source of input."
+---
+
+<Note>
+Agents are the foundation of LarAgent. They define how your AI assistant behaves, what tools it can use, and how it processes information.
+</Note>
+
+## Creating an Agent
+
+You can create a new agent manually by extending the `LarAgent\Agent` class. This is the parent class for building your custom AI agent with specific capabilities and behaviors.
+
+<Warning>
+Using `make:agent` command is a recommended way of creating agents.
+</Warning>
+
+```php
+namespace App\AiAgents;
+
+use LarAgent\Agent;
+
+class MyAgent extends Agent
+{
+    // Your agent implementation
+}
+```
+
+For rapid development, you can use the artisan command to generate a new agent with a basic structure:
+
+```bash
+php artisan make:agent MyAgent
+```
+
+This will create a new agent class in the `App\AiAgents` directory with all the necessary boilerplate code:
+
+```php YourAgentName.php
+<?php
+
+namespace App\AiAgents;
+
+use LarAgent\Agent;
+
+class YourAgentName extends Agent
+{
+    protected $model = 'gpt-4o-mini';
+
+    protected $history = 'in_memory';
+
+    protected $provider = 'default';
+
+    protected $tools = [];
+
+    public function instructions()
+    {
+        return "Define your agent's instructions here.";
+    }
+
+    public function prompt($message)
+    {
+        return $message;
+    }
+}
+```
+
+## Configuring an Agent
+
+Agents can be configured through various properties and methods to customize their behavior. Here are the core configuration options:
+
+<Tabs>
+  <Tab title="Instructions">
+  ```php
+  /** @var string - Define the agent's behavior and role */
+  protected $instructions;
+  ```
+  
+  This property sets the system instructions for your agent, defining its behavior, personality, and capabilities.
+  
+  ```php
+  // Example
+  protected $instructions = "You are a helpful assistant specialized in weather forecasting.";
+  ```
+  </Tab>
+  
+  <Tab title="History">
+  ```php
+  /** @var string - Choose from built-in chat history types */
+  protected $history;
+  ```
+  
+  Choose from built-in chat history implementations: "in_memory", "session", "cache", "file", or "json".
+  
+  ```php
+  // Example
+  protected $history = 'cache';
+  
+  // Or use a class
+  protected $history = \LarAgent\History\CacheChatHistory::class;
+  ```
+  </Tab>
+  
+  <Tab title="Driver">
+  ```php
+  /** @var string - Specify which LLM driver to use */
+  protected $driver;
+  ```
+  
+  The driver class that handles communication with the AI provider.
+  
+  ```php
+  // Example
+  protected $driver = \LarAgent\Drivers\OpenAi\OpenAiDriver::class;
+  ```
+  </Tab>
+  
+  <Tab title="Provider">
+  ```php
+  /** @var string - Select the AI provider configuration */
+  protected $provider = 'default';
+  ```
+  
+  References a provider configuration from your config file.
+  
+  ```php
+  // Example
+  protected $provider = 'openai-gpt4';
+  ```
+  </Tab>
+  
+  <Tab title="Model">
+  ```php
+  /** @var string - Choose which language model to use */
+  protected $model = 'gpt-4o-mini';
+  ```
+  
+  The specific model to use from your chosen provider.
+  
+  ```php
+  // Example
+  protected $model = 'gpt-4o';
+  ```
+  </Tab>
+  
+  <Tab title="Tokens">
+  ```php
+  /** @var int - Set the maximum number of tokens in the completion */
+  protected $maxCompletionTokens;
+  ```
+  
+  Limits the length of the AI's response.
+  
+  ```php
+  // Example
+  protected $maxCompletionTokens = 2000;
+  ```
+  </Tab>
+  
+  <Tab title="Temperature">
+  ```php
+  /** @var float - Control response creativity */
+  protected $temperature;
+  ```
+  
+  Controls randomness: 0.0 for focused responses, 2.0 for creative ones.
+  
+  ```php
+  // Example
+  protected $temperature = 0.7; // Balanced
+  ```
+  </Tab>
+  
+  <Tab title="Message">
+  ```php
+  /** @var string|null - Current message being processed */
+  protected $message;
+  ```
+  
+  Holds the current message that the agent is processing.
+  
+  ```php
+  // This is typically set internally by the agent
+  // You can access it with $this->currentMessage()
+  ```
+  </Tab>
+</Tabs>
+
+#### Core methods
+The agent also provides three core methods that you can override to customize its behavior:
+
+<CodeGroup>
+```php Instructions Method
+/**
+ * Define the agent's system instructions
+ * This sets the behavior, role, and capabilities of your agent
+ * For simple textual instructions, use the `instructions` property
+ * For more complex instructions or dynamic behavior, use the `instructions` method
+ */
+public function instructions()
+{
+    return "Define your agent's instructions here.";
+}
+```
+
+```php Prompt Method
+/**
+ * Customize how messages are processed before sending to the AI
+ * Useful for formatting, adding context (RAG), or standardizing input
+ */
+public function prompt(string $message)
+{
+    return $message;
+}
+```
+
+```php Model Method
+/**
+ * Decide which model to use dynamically with custom logic
+ * Or use property $model to statically set the model
+ */
+public function model()
+{
+    return $this->model;
+}
+```
+</CodeGroup>
+
+## Using an Agent
+
+There are two ways to interact with your agent: direct response or chainable methods.
+
+### Direct Response
+
+The simplest way is to use the `for()` method to specify a chat history name and get an immediate response:
+
+```php
+// Using a specific chat history name
+echo WeatherAgent::for('test_chat')->respond('What is the weather like?');
+```
+
+### Chainable Methods
+
+For more control over the interaction, you can use the chainable syntax:
+
+<CodeGroup>
+```php Basic Chaining
+$response = WeatherAgent::for('test_chat')
+    ->message('What is the weather like?')  // Set the message
+    ->temperature(0.7)                      // Optional: Override temperature
+    ->respond();                            // Get the response
+```
+
+```php User-specific Chaining
+// Different histories for different users
+echo WeatherAgent::for('user_1_chat')->respond('What is the weather like?');
+echo WeatherAgent::for('user_2_chat')->respond('How about tomorrow?');
+echo WeatherAgent::forUser(auth()->user())->respond('How about tomorrow?');
+```
+</CodeGroup>
+
+## Chainable Methods Reference
+
+Here are some chainable methods to modify the agent's behavior on the fly:
+
+<Accordion title="Available Chainable Methods">
+```php
+/**
+ * Set the message for the agent to process
+ */
+public function message(string $message);
+
+/**
+ * Add images to the agent's input (message)
+ * @param array $imageUrls Array of image URLs
+ */
+public function withImages(array $imageUrls);
+
+/**
+ * Decide model dynamically in your controller
+ * @param string $model Model identifier (e.g., 'gpt-4o', 'gpt-3.5-turbo')
+ */
+public function withModel(string $model);
+
+/**
+ * Add custom message to the chat history with a needed role
+ * @param MessageInterface Easily created with message class: Message::system('Your message here')
+ */
+public function addMessage(MessageInterface $message);
+
+/**
+ * Clear the chat history 
+ * This removes all messages from the chat history
+ */
+public function clear();
+
+/**
+ * Set other chat history instance
+ */
+public function setChatHistory(ChatHistoryInterface $chatHistory);
+
+/**
+ * Add tool to the agent's registered tools
+ */
+public function withTool(ToolInterface $tool);
+
+/**
+ * Remove tool for this specific call
+ */
+public function removeTool(string $name);
+
+/**
+ * Override the temperature for this specific call
+ */
+public function temperature(float $temp);
+```
+</Accordion>
+
+## Agent Accessors
+
+You can access the agent's properties using these methods on an instance of the agent:
+
+<CodeGroup>
+```php Session and Provider
+/**
+ * Get the current chat session ID
+ * String like "[AGENT_NAME]_[MODEL_NAME]_[CHAT_NAME]"
+ * CHAT_NAME is defined by "for" method
+ * Example: WeatherAgent_gtp-4o-mini_test-chat
+ */
+public function getChatSessionId(): string;
+
+/**
+ * Returns the provider name
+ */
+public function getProviderName(): string;
+```
+
+```php Tools and History
+/**
+ * Returns an array of registered tools
+ */
+public function getTools(): array;
+
+/**
+ * Returns current chat history instance
+ */
+public function chatHistory(): ChatHistoryInterface;
+```
+
+```php Messages
+/**
+ * Returns the current message
+ */
+public function currentMessage(): ?string;
+
+/**
+ * Returns the last message
+ */
+public function lastMessage(): ?MessageInterface;
+
+/**
+ * Get all chat keys associated with this agent class
+ */
+public function getChatKeys(): array;
+```
+</CodeGroup>
+
+### Example Configuration
+
+<Frame>
+```php
+class WeatherAgent extends Agent
+{
+    protected $model = 'gpt-4';
+    protected $history = 'cache';
+    protected $temperature = 0.7;
+    
+    public function instructions()
+    {
+        return "You are a weather expert assistant. Provide accurate weather information.";
+    }
+    
+    public function prompt(string $message)
+    {
+        return "Weather query: " . $message;
+    }
+}
+```
+</Frame>

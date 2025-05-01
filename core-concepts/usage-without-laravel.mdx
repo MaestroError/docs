@@ -1,0 +1,225 @@
+---
+title: "Usage Without Laravel"
+description: "Learn how to use LarAgent in non-Laravel PHP projects by leveraging the standalone engine."
+---
+
+<Warning>
+**Important Notice**: LarAgent will soon drop support for direct usage outside of Laravel. However, the core engine will be released as a separate package with the same API (methods/functions), ensuring continued support for non-Laravel projects.
+</Warning>
+
+## Using LarAgent Outside of Laravel
+
+LarAgent's core functionality is powered by the `LarAgent\LarAgent` class, often referred to as the "LarAgent engine." This engine is a standalone component that contains all the abstractions and doesn't depend on Laravel. It manages agents, tools, chat histories, structured output, and other core features.
+
+<Frame>
+  <img src="/images/laragent-architecture.png" alt="LarAgent Architecture" />
+  <figcaption>LarAgent's architecture showing the standalone engine and Laravel integration</figcaption>
+</Frame>
+
+## Getting Started
+
+To use LarAgent outside of Laravel, you'll need to handle some configuration and initialization manually:
+
+```php
+use LarAgent\LarAgent;
+use LarAgent\History\InMemoryChatHistory;
+use LarAgent\Drivers\OpenAi\OpenAiDriver;
+
+// Create configuration
+$config = [
+    'api_key' => 'your-openai-api-key',
+    'model' => 'gpt-4',
+    'temperature' => 0.7,
+];
+
+// Initialize the engine
+$engine = new LarAgent($config);
+
+// Create a chat history
+$chatHistory = new InMemoryChatHistory('my-chat-session');
+
+// Set system instructions
+$engine->setInstructions("You are a helpful assistant.");
+
+// Add a message and get a response
+$response = $engine->respond("Hello, how can you help me?", $chatHistory);
+
+echo $response;
+```
+
+## Configuring the Engine
+
+When using LarAgent outside of Laravel, you'll need to provide configuration directly:
+
+```php
+$config = [
+    // Required configuration
+    'api_key' => 'your-openai-api-key',
+    
+    // Optional configuration with defaults
+    'model' => 'gpt-4',                      // Default model to use
+    'temperature' => 0.7,                    // Response creativity (0.0-2.0)
+    'max_completion_tokens' => 1000,         // Maximum tokens in completion
+    'context_window_size' => 16000,          // Maximum tokens in context window
+    'reinject_instructions_per' => 0,        // Reinject instructions every N messages (0 = disabled)
+    'driver' => OpenAiDriver::class,         // LLM driver class
+    'api_url' => null,                       // Custom API URL (for compatible providers)
+];
+
+$engine = new LarAgent($config);
+```
+
+## Adding Tools
+
+You can add tools to the engine using the `addTool` method:
+
+<CodeGroup>
+```php Basic Tool
+use LarAgent\Tool;
+
+// Create a simple tool
+$weatherTool = Tool::create('get_weather', 'Get weather information for a location')
+    ->addProperty('location', 'string', 'The city and state')
+    ->setCallback(function($location) {
+        return "The weather in {$location} is sunny and 75°F";
+    });
+
+// Add the tool to the engine
+$engine->addTool($weatherTool);
+```
+
+```php Tool Class
+use LarAgent\Tool;
+
+class WeatherTool extends Tool
+{
+    protected string $name = 'get_weather';
+    protected string $description = 'Get weather information for a location';
+    protected array $properties = [
+        'location' => [
+            'type' => 'string',
+            'description' => 'The city and state',
+        ],
+    ];
+    
+    public function execute(array $input): mixed
+    {
+        $location = $input['location'];
+        return "The weather in {$location} is sunny and 75°F";
+    }
+}
+
+// Add the tool to the engine
+$engine->addTool(new WeatherTool());
+```
+</CodeGroup>
+
+## Managing Chat History
+
+Outside of Laravel, you'll need to manage chat history instances manually:
+
+```php
+use LarAgent\History\JsonChatHistory;
+
+// Create a persistent JSON-based chat history
+$chatHistory = new JsonChatHistory('user-123');
+
+// Use the chat history for a conversation
+$response = $engine->respond("Hello", $chatHistory);
+
+// Later, continue the conversation with the same history
+$response = $engine->respond("What were we talking about?", $chatHistory);
+
+// Clear the history when needed
+$chatHistory->clear();
+```
+
+## Structured Output
+
+You can define structured output schemas just like in Laravel:
+
+```php
+use LarAgent\LarAgent;
+
+$engine = new LarAgent([/* config */]);
+
+// Define a structured output schema
+$schema = [
+    'name' => 'user_profile',
+    'schema' => [
+        'type' => 'object',
+        'properties' => [
+            'name' => ['type' => 'string'],
+            'age' => ['type' => 'number'],
+            'interests' => [
+                'type' => 'array',
+                'items' => ['type' => 'string'],
+            ],
+        ],
+        'required' => ['name', 'age', 'interests'],
+    ],
+];
+
+// Set the schema
+$engine->setStructuredOutput($schema);
+
+// Get a structured response
+$response = $engine->respond("Create a profile for John Doe", $chatHistory);
+// Returns: ['name' => 'John Doe', 'age' => 30, 'interests' => ['coding', 'hiking']]
+```
+
+## Streaming Responses
+
+Streaming works similarly to the Laravel implementation:
+
+```php
+$stream = $engine->respondStreamed(
+    "Tell me a long story",
+    $chatHistory,
+    function ($chunk) {
+        if ($chunk instanceof \LarAgent\Messages\StreamedAssistantMessage) {
+            echo $chunk->getLastChunk();
+            flush();
+        }
+    }
+);
+
+// Consume the stream
+foreach ($stream as $_) {
+    // The callback handles the output
+}
+```
+
+## Differences from Laravel Usage
+
+When using LarAgent outside of Laravel, be aware of these key differences:
+
+<CardGroup cols={2}>
+  <Card title="Manual Configuration" icon="gear">
+    You need to provide all configuration directly instead of using Laravel's config system.
+  </Card>
+  <Card title="No Artisan Commands" icon="terminal">
+    You won't have access to the helpful artisan commands for generating agents and tools.
+  </Card>
+  <Card title="Manual Chat History" icon="history">
+    You need to create and manage chat history instances yourself.
+  </Card>
+  <Card title="No Service Container" icon="box">
+    You can't leverage Laravel's service container for dependency injection.
+  </Card>
+</CardGroup>
+
+## Future Plans
+
+<Note>
+As mentioned at the top of this page, LarAgent will soon separate its core engine into a standalone package. This will provide a cleaner, more focused API for non-Laravel projects while maintaining full compatibility with the current methods and functions.
+</Note>
+
+The standalone engine will offer:
+
+- Improved documentation specifically for non-Laravel usage
+- Simplified installation for PHP projects
+- Reduced dependencies
+- The same powerful features you're used to in LarAgent
+
+Stay tuned to the [official repository](https://github.com/MaestroError/LarAgent) for announcements about this upcoming change.
