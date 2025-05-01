@@ -6,37 +6,37 @@ description: "LarAgent brings the power of AI agents to your Laravel projects wi
 
 <CardGroup cols={2}>
   <Card
-    title="Customize Style"
-    icon="palette"
-    href="https://mintlify.com/docs/settings/global"
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
   >
-    Customize your docs to your company's colors and brands
+    Get started with LarAgent in minutes
   </Card>
   <Card
-    title="Reference APIs"
+    title="Core Concepts"
     icon="code"
-    href="https://mintlify.com/docs/api-playground/openapi"
+    href="/agents"
   >
-    Automatically generate endpoints from an OpenAPI spec
+    Learn how to create agents and tools
   </Card>
   <Card
-    title="Add Components"
+    title="Structured output"
     icon="screwdriver-wrench"
-    href="https://mintlify.com/docs/content/components/accordions"
+    href="/structured-output"
   >
-    Build interactive features and designs to guide your users
+    Learn about structured output
   </Card>
   <Card
-    title="Get Inspiration"
+    title="Blog"
     icon="stars"
-    href="https://mintlify.com/customers"
+    href="https://blog.laragent.ai"
   >
-    Check out our showcase of our favorite documentation
+    Check out our blog for tutorials and updates
   </Card>
 </CardGroup>
 
 
-## Idea
+## What is LarAgent?
 
 What if you can create AI agents just like you create any other Eloquent model?
 
@@ -92,15 +92,7 @@ protected $temperature = 0.5;
 // ...
 ```
 
-Even disable parallel tool calls:
-
-```php
-// ...
-protected $parallelToolCalls = false;
-// ...
-```
-
-Oh, and add a new tool as well:
+Oh, and add a new tool:
 
 ```php
 // ...
@@ -120,7 +112,7 @@ Use App\AiAgents\YourAgentName;
 YourAgentName::forUser(auth()->user())->respond($message);
 ```
 
-Or use a custom name for the chat history:
+Or use your custom name for the chat history:
 
 ```php
 Use App\AiAgents\YourAgentName;
