@@ -22,11 +22,6 @@ foreach ($stream as $chunk) {
 }
 ```
 
-<Frame>
-  <img src="/images/streaming-diagram.png" alt="Streaming Response Flow" />
-  <figcaption>How streaming responses flow from the LLM to your application</figcaption>
-</Frame>
-
 ## Streaming with Callback
 
 You can also provide a callback function to process each chunk:
@@ -55,7 +50,7 @@ foreach ($stream as $_) {
 
 The stream can yield three types of chunks:
 
-<CardGroup cols={3}>
+<CardGroup cols={2}>
   <Card title="StreamedAssistantMessage" icon="message">
     Regular text content chunks from the AI assistant
   </Card>
@@ -214,24 +209,21 @@ $finalStructuredData = null;
 
 foreach ($stream as $chunk) {
     if ($chunk instanceof \LarAgent\Messages\StreamedAssistantMessage) {
-        echo $chunk->getLastChunk(); // Show progress to user
+        echo $chunk->getLastChunk(); // Part of JSON
     } elseif (is_array($chunk)) {
         // This is the final structured data
         $finalStructuredData = $chunk;
     }
 }
 
-// Now $finalStructuredData contains the structured output
+// Now $finalStructuredData is array which contains the structured output
 // For example: ['name' => 'John Doe', 'age' => 30, 'interests' => [...]]
 ```
 
 When using SSE format with structured output, you'll receive a special event:
 
 ```
-event: content
-data: {"type":"text","delta":"Generating profile...","content":"Generating profile..."}
-
-event: content
+event: structured
 data: {"type":"structured","delta":"","content":{"name":"John Doe","age":30,"interests":["coding","reading","hiking"]},"complete":true}
 
 event: complete
@@ -252,10 +244,6 @@ data: {"content":{"name":"John Doe","age":30,"interests":["coding","reading","hi
 **Do** implement proper error handling in your streaming code
 </Check>
 
-<X>
-**Don't** forget to consume the entire stream, even when using callbacks
-</X>
+<Icon icon="x" iconType="solid" color="red" /> **Don't** forget to consume the entire stream, even when using callbacks
 
-<X>
-**Don't** rely on specific timing of chunks, as they can vary based on network conditions
-</X>
+<Icon icon="x" iconType="solid" color="red" /> **Don't** rely on specific timing of chunks, as they can vary based on network conditions

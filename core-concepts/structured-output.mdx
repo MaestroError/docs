@@ -9,7 +9,7 @@ Structured output allows you to define a specific JSON schema that your AI respo
 
 ## Defining Response Schemas
 
-You can define the response schema in your agent class using the `$responseSchema` property:
+You can define the response schema in your agent class using the `$responseSchema` property or add the `structuredOutput` method in your agent class for defining more complex schemas.
 
 <CodeGroup>
 ```php Basic Schema
@@ -69,11 +69,20 @@ public function structuredOutput()
 ```
 </CodeGroup>
 
+
+<Warning>
+Pay attention to the `required`, `additionalProperties`, and `strict` properties. It's recommended by OpenAI to set these when defining schemas to get exactly the structure you need.
+</Warning>
+
 <Tip>
 For complex schemas, it's recommended to use the `structuredOutput()` method instead of the property, as it provides more flexibility and can include dynamic logic.
 </Tip>
 
-## Schema Configuration Options
+<Tip>
+Using trait with `structuredOutput()` method is a good practice to avoid code duplication and make your code more maintainable.
+</Tip>
+
+#### Schema Configuration Options
 
 The schema follows the JSON Schema specification and supports all its features:
 
@@ -92,15 +101,10 @@ The schema follows the JSON Schema specification and supports all its features:
   </Card>
 </CardGroup>
 
-<Warning>
-Pay attention to the `required`, `additionalProperties`, and `strict` properties. It's recommended by OpenAI to set these when defining schemas to get exactly the structure you need.
-</Warning>
-
 ## Using Structured Output
 
 When structured output is defined, the agent's response will be automatically formatted and returned as an array according to the schema:
 
-<Frame>
 ```php
 // Example response when using the complex schema above
 $response = $agent->respond("What's the weather like today?");
@@ -115,7 +119,6 @@ $response = $agent->respond("What's the weather like today?");
     ]
 ]
 ```
-</Frame>
 
 ## Runtime Schema Management
 
@@ -149,7 +152,9 @@ if ($agent->structuredOutput()) {
                 ],
             ],
             'required' => ['name', 'age', 'interests'],
+            'additionalProperties' => false,
         ],
+        'strict' => true,
     ];
     ```
   </Accordion>
@@ -171,12 +176,15 @@ if ($agent->structuredOutput()) {
                             'score' => ['type' => 'number'],
                         ],
                         'required' => ['id', 'name', 'reason'],
+                        'additionalProperties' => false,
                     ],
                 ],
                 'category' => ['type' => 'string'],
             ],
             'required' => ['products', 'category'],
+            'additionalProperties' => false,
         ],
+        'strict' => true,
     ];
     ```
   </Accordion>
@@ -202,16 +210,22 @@ if ($agent->structuredOutput()) {
                 ],
             ],
             'required' => ['sentiment', 'topics', 'summary'],
+            'additionalProperties' => false,
         ],
+        'strict' => true,
     ];
     ```
   </Accordion>
 </AccordionGroup>
 
+<Warning>
+In most of the cases you need to include all properties in `required`, skip only properties which are optional in ANY case.
+</Warning>
+
 ## Best Practices
 
 <Check>
-**Do** make your schema as specific as possible to get predictable results
+**Do** make your schema as specific as possible
 </Check>
 
 <Check>
@@ -222,10 +236,6 @@ if ($agent->structuredOutput()) {
 **Do** set `additionalProperties` to `false` when you want to restrict the output to only the defined properties
 </Check>
 
-<X>
-**Don't** create overly complex schemas that the AI might struggle to fulfill
-</X>
+<Icon icon="x" iconType="solid" color="red" /> **Don't** create overly complex (Deeply Nested) schemas that the AI might struggle to fulfill
 
-<X>
-**Don't** forget to set the `required` property for fields that must be present
-</X>
+<Icon icon="x" iconType="solid" color="red" /> **Don't** forget to set the `required` property for fields that must be present

@@ -9,12 +9,23 @@ LLM Drivers allow you to switch between different AI providers (like OpenAI, Oll
 
 ## Understanding LLM Drivers
 
-LarAgent provides a `LlmDriver` interface that allows you to implement custom LLM drivers for different providers. The built-in drivers implement this interface and provide a simple way to use various AI APIs with a consistent interface.
+LLM Drivers provide a standardized interface for interacting with different language model providers, allowing you to easily switch between providers without changing your application code.
 
-<Frame>
-  <img src="/images/llm-drivers-diagram.png" alt="LLM Drivers Architecture" />
-  <figcaption>How LLM Drivers abstract away provider-specific implementations</figcaption>
-</Frame>
+The built-in drivers implement this interface and provide a simple way to use various AI APIs with a consistent interface.
+
+Check [Creating Custom Drivers](#creating-custom-drivers) for more details about building custom drivers.
+
+
+## Available Drivers
+
+<CardGroup cols={2}>
+  <Card title="OpenAiDriver" icon="robot">
+    Default driver for OpenAI API. Works with minimal configuration - just add your `OPENAI_API_KEY` to your `.env` file.
+  </Card>
+  <Card title="OpenAiCompatible" icon="plug">
+    Works with any OpenAI-compatible API, allowing you to use alternative backends with the same API format.
+  </Card>
+</CardGroup>
 
 ## Configuring Drivers
 
@@ -22,20 +33,14 @@ You can configure LLM drivers in two ways:
 
 ### 1. Global Configuration
 
-Set drivers in the configuration file (`config/laragent.php`):
+Set drivers in the configuration file inside provider settings (`config/laragent.php`):
 
-```php
+```php {5}
 'providers' => [
     'default' => [
         'label' => 'openai',
         'api_key' => env('OPENAI_API_KEY'),
         'driver' => \LarAgent\Drivers\OpenAi\OpenAiDriver::class,
-    ],
-    'alternative' => [
-        'label' => 'alternative-provider',
-        'api_key' => env('ALTERNATIVE_API_KEY'),
-        'driver' => \LarAgent\Drivers\OpenAi\OpenAiCompatible::class,
-        // Additional provider-specific settings
     ],
 ],
 ```
@@ -44,36 +49,26 @@ Set drivers in the configuration file (`config/laragent.php`):
 
 Set the driver directly in your agent class:
 
-```php
+```php app/AiAgents/YourAgent.php
 namespace App\AiAgents;
 
 use LarAgent\Agent;
 use LarAgent\Drivers\OpenAi\OpenAiCompatible;
 
-class CustomAgent extends Agent
+class YourAgent extends Agent
 {
     protected $driver = OpenAiCompatible::class;
-    protected $provider = 'alternative';
     // Other agent configuration
 }
 ```
-
-## Available Drivers
-
-<CardGroup cols={2}>
-  <Card title="OpenAiDriver" icon="openai">
-    Default driver for OpenAI API. Works with minimal configuration - just add your `OPENAI_API_KEY` to your `.env` file.
-  </Card>
-  <Card title="OpenAiCompatible" icon="plug">
-    Works with any OpenAI-compatible provider, allowing you to use alternative backends with the same API format.
-  </Card>
-</CardGroup>
+<Warning>
+If you set the driver in the agent class, it will override the global configuration.
+</Warning>
 
 ## Example Configurations
 
 ### Ollama (Local LLM)
 
-<Accordion title="Ollama Configuration">
 ```php
 // File: config/laragent.php
 'providers' => [
@@ -94,11 +89,9 @@ class CustomAgent extends Agent
 protected $provider = 'ollama';
 protected $model = 'llama2'; // Or any other model available in your Ollama instance
 ```
-</Accordion>
 
 ### OpenRouter
 
-<Accordion title="OpenRouter Configuration">
 ```php
 // File: config/laragent.php
 'providers' => [
@@ -119,7 +112,22 @@ protected $model = 'llama2'; // Or any other model available in your Ollama inst
 protected $provider = 'openrouter';
 protected $model = 'anthropic/claude-3-opus'; // Or any other model available on OpenRouter
 ```
-</Accordion>
+
+### Gemini
+```php
+'gemini' => [
+    'label' => 'gemini',
+    'model'=>'gemini-2.5-pro-preview-03-25',
+    'driver'=>\LarAgent\Drivers\OpenAi\OpenAiCompatible::class,
+    'api_url'=>'https://generativelanguage.googleapis.com/v1beta/openai',
+    'api_key' => env('GEMINI_API_KEY'),
+]
+```
+
+```php
+// In your agent class
+protected $provider = 'gemini';
+```
 
 ## Using Multiple Providers
 
@@ -150,41 +158,76 @@ $agent = MyAgent::for('chat-session')
     ->respond('Hello, how can you help me?');
 ```
 
+## LLM Drivers Architecture
+
+```mermaid
+flowchart TD
+    Agent[Agent] --> LlmDriver[LLM Driver]
+    
+    subgraph AbstractionLayer["LLM Driver Abstraction"]
+        LlmDriver -->|#0 Set configs model, temperature, etc. | Config[Configuration]
+        LlmDriver -->|#1 Register Tools| Tools[Tools Registry]
+        LlmDriver -->|#2 Set Response Schema| Schema[Response Schema]
+        LlmDriver -->|#3 Format Tool Calls| Formatter[Tool Call structure]
+    end
+    
+    subgraph Implementations["Provider Implementations"]
+        LlmDriver --> OpenAI[OpenAI Driver]
+        LlmDriver --> Compatible[OpenAI Compatible]
+        LlmDriver --> Anthropic[Anthropic Driver]
+    end
+    
+    OpenAI --> LLMProvider[OpenAI API]
+    Compatible --> LLMCompat[Ollama/Gemini/Other API]
+    Anthropic --> LLMAnthropic[Anthropic API]
+```
+
+The LLM Driver architecture handles three key responsibilities:
+
+1. **Tool Registration** - Register function calling tools that can be used by the LLM
+2. **Response Schema** - Define structured output formats for LLM responses
+3. **Tool Call Formatting** - Abstract away provider-specific formats for tool calls and results
+
+This abstraction allows you to switch between different LLM providers without changing your application code.
+
 ## Creating Custom Drivers
 
 If you need to integrate with an AI provider that doesn't have a built-in driver, you can create your own by implementing the `LlmDriver` interface:
 
-<Accordion title="Custom Driver Example">
 ```php
 namespace App\LlmDrivers;
 
-use LarAgent\Contracts\LlmDriver;
-use LarAgent\Messages\MessageInterface;
+use LarAgent\Core\Abstractions\LlmDriver;
+use LarAgent\Core\Contracts\LlmDriver as LlmDriverInterface;
+use LarAgent\Core\Contracts\ToolCall as ToolCallInterface;
+use LarAgent\Messages\AssistantMessage;
+use LarAgent\Messages\StreamedAssistantMessage;
+use LarAgent\Messages\ToolCallMessage;
+use LarAgent\ToolCall;
 
-class CustomProviderDriver implements LlmDriver
+class CustomProviderDriver extends LlmDriver implements LlmDriverInterface
 {
-    protected $apiKey;
-    protected $apiUrl;
     
-    public function __construct(array $config)
+    public function sendMessage(array $messages, array $options = []): AssistantMessage
     {
-        $this->apiKey = $config['api_key'];
-        $this->apiUrl = $config['api_url'] ?? 'https://api.customprovider.com';
+        // Implement the API call to your provider
     }
     
-    public function chat(array $messages, array $options = [])
-    {
-        // Implement the API call to your custom provider
-        // Transform messages and options to the format expected by your provider
-        // Return the response in a standardized format
-    }
-    
-    public function chatStream(array $messages, array $options = [])
+    public function sendMessageStreamed(array $messages, array $options = [], ?callable $callback = null): \Generator
     {
         // Implement streaming for your custom provider
     }
+
+    public function toolCallsToMessage(array $toolCalls): array
+    {
+        // Implement tool calls to message conversion
+    }
     
-    // Implement other required methods...
+    public function toolResultToMessage(ToolCallInterface $toolCall, mixed $result): array
+    {
+        // Implement tool result to message conversion
+    }
+    // Implement other helper methods...
 }
 ```
 
@@ -198,11 +241,13 @@ Then register your custom driver in the configuration:
         'driver' => \App\LlmDrivers\CustomProviderDriver::class,
         'api_key' => env('CUSTOM_PROVIDER_API_KEY'),
         'api_url' => env('CUSTOM_PROVIDER_API_URL'),
+        'model' => 'model-name',
         // Any other configuration your driver needs
     ],
 ],
 ```
-</Accordion>
+
+Check [Base OpenAI driver](https://github.com/MaestroError/LarAgent/blob/main/src/Drivers/OpenAi/BaseOpenAiDriver.php) for example.
 
 ## Best Practices
 
@@ -218,10 +263,6 @@ Then register your custom driver in the configuration:
 **Do** consider implementing fallback mechanisms between providers
 </Check>
 
-<X>
-**Don't** expose sensitive provider configuration in client-side code
-</X>
+<Icon icon="x" iconType="solid" color="red" /> **Don't** expose sensitive provider configuration in client-side code
 
-<X>
-**Don't** assume all providers support the same features (like function calling or parallel tool execution)
-</X>
+<Icon icon="x" iconType="solid" color="red" /> **Don't** assume all providers support the same features (like function calling or parallel tool execution)
