@@ -1,0 +1,198 @@
+---
+title: "Agent Events"
+description: "Learn how to use Agent lifecycle events to customize behavior"
+---
+
+# Agent Events
+
+LarAgent provides a comprehensive event system that allows you to hook into various stages of the agent's lifecycle. Agent events focus on the agent's lifecycle such as initialization, conversation flow, and termination. They are perfect for setting up agent-specific configurations, handling conversation state, and managing cleanup operations.
+
+## Available Agent Events
+
+You can override any of these methods in your agent class to customize behavior at different points in the agent's lifecycle.
+
+### onInitialize
+
+The `onInitialize` hook is called when the agent is fully initialized. This is the perfect place to set up any initial state or configurations your agent needs.
+
+**Example: Set temperature dynamically based on user preferences**
+
+```php
+protected function onInitialize()
+{
+    if (auth()->check() && auth()->user()->prefersCreative()) {
+        $this->temperature(1.4);
+    }
+}
+```
+
+### onConversationStart
+
+This hook is triggered at the beginning of each `respond` method call, signaling the start of a new step in conversation. Use this to prepare conversation-specific resources or logging.
+
+**Example: Log conversation start**
+
+```php
+protected function onConversationStart()
+{
+    Log::info(
+        'Starting new conversation', 
+        [
+            'agent' => self::class,
+            'message' => $this->currentMessage()
+        ]
+    );
+}
+```
+
+### onConversationEnd
+
+Called at the end of each `respond` method, this hook allows you to perform cleanup, logging or any other logic your application might need after a conversation ends. In case of streaming, it runs at the last chunk received.
+
+**Example: Save conversation history**
+
+```php
+/** @param MessageInterface|array|null $message */
+protected function onConversationEnd($message)
+{
+    // Clean the history
+    $this->clear();
+    // Save the last response
+    DB::table('chat_histories')->insert(
+        [
+            'chat_session_id' => $this->chatHistory()->getIdentifier(),
+            'message' => $message,
+        ]
+    );
+}
+```
+
+### onToolChange
+
+This hook is triggered whenever a tool is added to or removed from the agent. It receives the tool instance and a boolean indicating whether the tool was added (`true`) or removed (`false`).
+
+**Example: Update tool metadata**
+
+```php
+/**
+ * @param ToolInterface $tool
+ * @param bool $added
+ */
+protected function onToolChange($tool, $added = true)
+{
+    // If 'my_tool' tool is added
+    if($added && $tool->getName() == 'my_tool') {
+        // Update metadata
+        $newMetaData = ['using_in' => self::class, ...$tool->getMetaData()];
+        $tool->setMetaData($newMetaData);
+    }
+}
+```
+
+### onClear
+
+Triggered before the agent's chat history is cleared. Use this hook to perform any necessary logic before the chat history is cleared.
+
+**Example: Backup chat history**
+
+```php
+protected function onClear()
+{
+    // Backup chat history
+    file_put_contents('backup.json', json_encode($this->chatHistory()->toArrayWithMeta()));
+}
+```
+
+### onTerminate
+
+This hook is called when the agent is being terminated. It's the ideal place to perform final cleanup, save state, or close connections.
+
+**Example: Log termination**
+
+```php
+protected function onTerminate()
+{
+    Log::info('Agent terminated successfully');
+}
+```
+
+## Using Laravel Events with Agent Hooks
+
+LarAgent hooks can be integrated with Laravel's event system to provide more flexibility and better separation of concerns. This allows you to:
+
+- Decouple event handling logic from your agent class
+- Use event listeners and subscribers
+- Leverage Laravel's event broadcasting capabilities
+- Handle events asynchronously using queues
+
+### Basic Event Integration
+
+First, define your event classes:
+
+```php
+// app/Events/AgentMessageReceived.php
+class AgentMessageReceived
+{
+    use Dispatchable, InteractsWithSockets, SerializesModels;
+
+    public function __construct(
+        public ChatHistoryInterface $history,
+        public MessageInterface $message
+    ) {}
+}
+```
+
+Then, implement the hook in your agent class:
+
+```php
+protected function afterSend($history, $message)
+{
+    // Dispatch Laravel event
+    AgentMessageReceived::dispatch($history, $message);
+    return true;
+}
+```
+
+<Note>
+**Note:** If you want to pass the agent in an event handler, use the `toDTO` method: `$this->toDTO()`
+</Note>
+
+### Using Event Listeners
+
+Create dedicated listeners for your agent events:
+
+```php
+// app/Listeners/LogAgentMessage.php
+class LogAgentMessage
+{
+    public function handle(AgentMessageReceived $event)
+    {
+        Log::info('Agent message received', [
+            'content' => $event->message->getContent(),
+            'tokens' => Tokenizer::count($event->message->getContent()),
+            'history_id' => $event->history->getIdentifier()
+        ]);
+    }
+}
+```
+
+Register the event-listener mapping in your `EventServiceProvider`:
+
+```php
+// app/Providers/EventServiceProvider.php
+protected $listen = [
+    AgentMessageReceived::class => [
+        LogAgentMessage::class,
+        NotifyAdminAboutMessage::class,
+        // Add more listeners as needed
+    ],
+];
+```
+
+## Best Practices
+
+1. **Keep hooks focused** - Each hook should have a single responsibility
+2. **Use appropriate hooks** - Choose the right hook for the task at hand
+3. **Handle exceptions** - Properly handle exceptions in your hooks to prevent breaking the agent
+4. **Consider performance** - Be mindful of performance implications, especially for hooks that run frequently
+5. **Use Laravel events for complex logic** - For complex event handling, consider using Laravel's event system

@@ -1,0 +1,440 @@
+---
+title: "Custom Chat History"
+description: "Learn how to create your own chat history implementation for LarAgent"
+---
+
+# Creating a Custom Chat History
+
+LarAgent allows you to create custom chat history implementations to store conversation data in your preferred storage mechanism. This guide will walk you through the process of creating a custom chat history implementation.
+
+## Understanding the Chat History Architecture
+
+The LarAgent framework uses a structured approach for chat history management:
+
+- **ChatHistory Interface** (`LarAgent\Core\Contracts\ChatHistory`): Defines the contract all chat history implementations must follow
+- **Abstract ChatHistory** (`LarAgent\Core\Abstractions\ChatHistory`): Provides common functionality for all chat history implementations
+- **Concrete Implementations**: Implement storage-specific logic (e.g., `InMemoryChatHistory`, `JsonChatHistory`, `FileChatHistory`)
+
+<Note>
+The code examples in this guide are simplified for educational purposes. Check the [actual implementations](https://github.com/MaestroError/LarAgent/tree/main/src/History) for more details.
+</Note>
+
+## Creating Your Custom Chat History
+
+### Step 1: Create the Chat History Class
+
+First, create a new file for your custom chat history implementation:
+
+```php
+<?php
+
+namespace App\ChatHistory;
+
+use LarAgent\Core\Abstractions\ChatHistory;
+use LarAgent\Core\Contracts\ChatHistory as ChatHistoryInterface;
+
+class YourCustomChatHistory extends ChatHistory implements ChatHistoryInterface
+{
+    // Your custom properties here
+    protected $customStorage;
+    
+    public function __construct(string $name, array $options = [])
+    {
+        // Initialize your custom storage mechanism
+        $this->customStorage = $options['custom_storage'] ?? null;
+        
+        // Call parent constructor to handle common setup
+        parent::__construct($name, $options);
+    }
+    
+    // Implement abstract methods...
+}
+```
+
+### Step 2: Implement Required Methods
+
+#### 2.1 Memory Management Methods
+
+These methods handle reading from and writing to your storage mechanism:
+
+```php
+/**
+ * Read chat history from storage
+ */
+public function readFromMemory(): void
+{
+    // Retrieve messages from your storage mechanism
+    $storedMessages = $this->retrieveFromStorage($this->getIdentifier());
+    
+    // Set messages in the chat history
+    // If using a format that needs conversion, use buildMessages()
+    $this->setMessages($this->buildMessages($storedMessages) ?? []);
+}
+
+/**
+ * Write chat history to storage
+ */
+public function writeToMemory(): void
+{
+    // Convert messages to a format suitable for storage
+    $messagesForStorage = $this->toArrayForStorage();
+    
+    // Save to your storage mechanism
+    $this->saveToStorage($this->getIdentifier(), $messagesForStorage);
+}
+```
+
+#### 2.2 Chat Key Management Methods
+
+These methods handle tracking which chat histories exist:
+
+```php
+/**
+ * Save the chat key to storage
+ */
+public function saveKeyToMemory(): void
+{
+    // Get current keys
+    $keys = $this->loadKeysFromMemory();
+    
+    // Add current key if not already present
+    $key = $this->getIdentifier();
+    if (!in_array($key, $keys)) {
+        $keys[] = $key;
+        $this->saveKeysToStorage($keys);
+    }
+}
+
+/**
+ * Load chat keys from storage
+ */
+public function loadKeysFromMemory(): array
+{
+    // Retrieve keys from your storage mechanism
+    return $this->retrieveKeysFromStorage() ?? [];
+}
+
+/**
+ * Remove a chat history and its key from storage
+ */
+public function removeChatFromMemory(string $key): void
+{
+    // Remove the chat history data
+    $this->removeFromStorage($key);
+    
+    // Remove the key
+    $this->removeChatKey($key);
+}
+```
+
+### Step 3: Implement Storage-Specific Methods
+
+These are helper methods specific to your storage mechanism:
+
+```php
+
+/**
+ * Remove a chat key from storage
+ */
+protected function removeChatKey(string $key): void
+{
+    // Get current keys
+    $keys = $this->loadKeysFromMemory();
+    
+    // Filter out the key to remove
+    $keys = array_filter($keys, fn($k) => $k !== $key);
+    
+    // Save updated keys
+    $this->saveKeysToStorage($keys);
+}
+
+/**
+ * Retrieve data from storage
+ */
+protected function retrieveFromStorage(string $key)
+{
+    // Implement based on your storage mechanism
+}
+
+/**
+ * Save data to storage
+ */
+protected function saveToStorage(string $key, array $data): void
+{
+    // Implement based on your storage mechanism
+}
+
+/**
+ * Retrieve keys from storage
+ */
+protected function retrieveKeysFromStorage(): array
+{
+    // Implement based on your storage mechanism
+}
+
+/**
+ * Save keys to storage
+ */
+protected function saveKeysToStorage(array $keys): void
+{
+    // Implement based on your storage mechanism
+}
+
+/**
+ * Remove data from storage
+ */
+protected function removeFromStorage(string $key): void
+{
+    // Implement based on your storage mechanism
+}
+```
+
+## Real-World Example: FileChatHistory
+
+Here's a complete implementation of a file-based chat history that uses Laravel's Storage facade:
+
+```php
+<?php
+
+namespace LarAgent\History;
+
+use Illuminate\Support\Facades\Storage;
+use LarAgent\Core\Abstractions\ChatHistory;
+use LarAgent\Core\Contracts\ChatHistory as ChatHistoryInterface;
+
+class FileChatHistory extends ChatHistory implements ChatHistoryInterface
+{
+    protected string $disk;   // The storage disk to use
+
+    protected string $folder; // The folder path to store files
+
+    protected string $keysFile = 'FileChatHistory-keys.json';
+
+    public function __construct(string $name, array $options = [])
+    {
+        $this->disk = $options['disk'] ?? config('filesystems.default'); // Default to 'local' storage
+        $this->folder = $options['folder'] ?? 'chat_histories'; // Default folder
+        parent::__construct($name, $options);
+    }
+
+    public function readFromMemory(): void
+    {
+        $filePath = $this->getFullPath();
+
+        if (Storage::disk($this->disk)->exists($filePath)) {
+            $content = Storage::disk($this->disk)->get($filePath);
+
+            try {
+                $messages = json_decode($content, true);
+
+                if (is_array($messages)) {
+                    $this->setMessages($this->buildMessages($messages));
+                } else {
+                    $this->setMessages([]);
+                }
+            } catch (\Exception $e) {
+                $this->setMessages([]);
+            }
+        } else {
+            $this->setMessages([]);
+        }
+    }
+
+    public function writeToMemory(): void
+    {
+        $filePath = $this->getFullPath();
+
+        try {
+            // Create directory if it doesn't exist
+            $this->createFolderIfNotExists();
+
+            // Write messages to the file
+            Storage::disk($this->disk)->put($filePath, json_encode($this->toArrayForStorage(), JSON_PRETTY_PRINT));
+        } catch (\Exception $e) {
+            throw new \RuntimeException("Failed to write chat history to file: {$filePath}");
+        }
+    }
+
+    public function saveKeyToMemory(): void
+    {
+        try {
+            $this->createFolderIfNotExists();
+            $keysPath = $this->folder.'/'.$this->keysFile;
+            $keys = $this->loadKeysFromMemory();
+
+            $key = $this->getIdentifier();
+            if (! in_array($key, $keys)) {
+                $keys[] = $key;
+                Storage::disk($this->disk)->put($keysPath, json_encode($keys, JSON_PRETTY_PRINT));
+            }
+        } catch (\Exception $e) {
+            throw new \RuntimeException("Failed to save chat history key: {$this->getIdentifier()}");
+        }
+    }
+
+    public function loadKeysFromMemory(): array
+    {
+        try {
+            $keysPath = $this->folder.'/'.$this->keysFile;
+
+            if (! Storage::disk($this->disk)->exists($keysPath)) {
+                return [];
+            }
+
+            $content = Storage::disk($this->disk)->get($keysPath);
+
+            return json_decode($content, true) ?? [];
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    public function removeChatFromMemory(string $key): void
+    {
+        $safeName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $key);
+        $filePath = $this->folder.'/'.$safeName.'.json';
+
+        if (Storage::disk($this->disk)->exists($filePath)) {
+            Storage::disk($this->disk)->delete($filePath);
+        }
+        $this->removeChatKey($key);
+    }
+
+    // Helper methods:
+
+    protected function createFolderIfNotExists(): void
+    {
+        $directory = $this->folder;
+
+        if (! Storage::disk($this->disk)->exists($directory)) {
+            Storage::disk($this->disk)->makeDirectory($directory);
+        }
+    }
+
+    protected function getSafeName(): string
+    {
+        $name = $this->getIdentifier();
+
+        return preg_replace('/[^A-Za-z0-9_\-]/', '_', $name); // Sanitize the name
+    }
+
+    protected function getFullPath(): string
+    {
+        return $this->folder.'/'.$this->getSafeName().'.json';
+    }
+
+    protected function removeChatKey(string $key): void
+    {
+        $keys = $this->loadKeysFromMemory();
+        $keys = array_filter($keys, fn ($k) => $k !== $key);
+
+        $keysPath = $this->folder.'/'.$this->keysFile;
+        Storage::disk($this->disk)->put($keysPath, json_encode($keys, JSON_PRETTY_PRINT));
+    }
+}
+```
+
+## Registering Your Custom Chat History
+
+Specify the chat history directly in your agent class:
+
+```php
+use App\ChatHistory\YourCustomChatHistory;
+
+class YourAgent extends Agent
+{
+    protected function createChatHistory($name): ChatHistory
+    {
+        return new YourCustomChatHistory($name, [
+            'custom_option' => 'value',
+        ]);
+    }
+}
+```
+
+## Best Practices
+
+### Error Handling
+
+- Always use try-catch blocks for storage operations
+- Provide meaningful error messages
+- Implement fallbacks for missing data
+
+### Performance
+
+- Consider caching for frequently accessed data
+- Use efficient storage mechanisms for your use case
+- Implement cleanup strategies for old chat histories
+
+### Security
+
+- Sanitize chat history identifiers before using as file names
+- Validate input data before storage
+- Consider encryption for sensitive conversation data
+
+### Cleanup
+
+- Implement automatic cleanup for old chat histories
+- Provide methods for manual cleanup
+- Ensure proper removal of both chat data and keys
+
+## Testing Your Custom Chat History
+
+Create test cases to verify your implementation:
+
+```php
+use Tests\TestCase;
+use App\ChatHistory\YourCustomChatHistory;
+
+class YourCustomChatHistoryTest extends TestCase
+{
+    protected YourCustomChatHistory $history;
+    
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->history = new YourCustomChatHistory('test-chat');
+    }
+    
+    public function testReadWriteToMemory(): void
+    {
+        // Add test messages
+        $this->history->addUserMessage('Hello');
+        $this->history->addAssistantMessage('Hi there');
+        
+        // Write to storage
+        $this->history->writeToMemory();
+        
+        // Create a new instance to read from storage
+        $newHistory = new YourCustomChatHistory('test-chat');
+        $newHistory->readFromMemory();
+        
+        // Assert messages were stored correctly
+        $this->assertCount(2, $newHistory->getMessages());
+        $this->assertEquals('Hello', $newHistory->getMessages()[0]->content);
+    }
+    
+    public function testKeyManagement(): void
+    {
+        // Save key
+        $this->history->saveKeyToMemory();
+        
+        // Assert key was saved
+        $keys = $this->history->loadKeysFromMemory();
+        $this->assertContains('test-chat', $keys);
+        
+        // Remove chat
+        $this->history->removeChatFromMemory('test-chat');
+        
+        // Assert key was removed
+        $keys = $this->history->loadKeysFromMemory();
+        $this->assertNotContains('test-chat', $keys);
+    }
+}
+```
+
+## Conclusion
+
+Creating a custom chat history implementation allows you to integrate LarAgent with your preferred storage mechanism. By following the steps in this guide and using the provided examples, you can create robust and efficient chat history implementations that meet your specific needs.
+
+Remember to check the [actual implementations](https://github.com/MaestroError/LarAgent/tree/main/src/History) in the LarAgent repository for more detailed examples and best practices.

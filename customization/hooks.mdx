@@ -1,0 +1,219 @@
+---
+title: "Engine Hooks"
+description: "Learn how to use Engine hooks to customize the conversation flow"
+---
+
+# Engine Hooks
+
+LarAgent's engine hooks provide fine-grained control over the conversation flow, message handling, and tool execution. Unlike agent events that focus on lifecycle, engine hooks dive deeper into the conversation processing pipeline, allowing you to intercept and modify behavior at crucial points.
+
+<Note>
+Each engine hook returns a boolean value where `true` allows the operation to proceed and `false` prevents it. In most cases, it's better to throw and handle exceptions instead of just returning `false`, since returning `false` silently stops execution.
+</Note>
+
+## Available Engine Hooks
+
+You can override any of these methods in your agent class to customize behavior at different points in the conversation flow.
+
+### beforeReinjectingInstructions
+
+This hook is called before the engine reinjects system instructions into the chat history. Use this to modify or validate the chat history before instructions are reinjected or even change the instructions completely.
+
+<Note>
+Instructions are always injected at the beginning of the chat history. The `$reinjectInstructionsPer` property defines when to reinject the instructions again. By default, it is set to `0` (disabled).
+</Note>
+
+**Example: Modify instructions based on chat history**
+
+```php
+/**
+ * @param ChatHistoryInterface $chatHistory
+ * @return bool
+ */
+protected function beforeReinjectingInstructions($chatHistory)
+{
+    // Prevent reinjecting instructions for specific chat types
+    if ($chatHistory->count() > 1000) {
+        $this->instuctions = view("agents/new_instructions", ['user' => auth()->user()])->render();
+    }
+    return true;
+}
+```
+
+### beforeSend & afterSend
+
+These hooks are called before and after a message is added to the chat history. Use them to modify, validate, or log messages.
+
+**Example: Filter sensitive information and log messages**
+
+```php
+/**
+ * @param ChatHistoryInterface $history
+ * @param MessageInterface|null $message
+ * @return bool
+ */
+protected function beforeSend($history, $message)
+{
+    // Filter out sensitive information
+    if ($message && Checker::containsSensitiveData($message->getContent())) {
+        throw new \Exception("Message contains sensitive data");
+    }
+    return true;
+}
+
+protected function afterSend($history, $message)
+{
+    // Log successful messages
+    Log::info('Message sent', [
+        'session' => $history->getIdentifier(),
+        'content_length' => Tokenizer::count($message->getContent())
+    ]);
+    return true;
+}
+```
+
+### beforeSaveHistory
+
+Triggered before the chat history is saved. Perfect for validation or modification of the history before persistence.
+
+**Example: Add metadata before saving**
+
+```php
+protected function beforeSaveHistory($history)
+{
+    // Add metadata before saving
+    $updatedMeta = [
+        'saved_at' => now()->timestamp,
+        'message_count' => $history->count(),
+        ...$history->getMetadata()
+    ];
+    $history->getLastMessage()->setMetadata($updatedMeta);
+    return true;
+}
+```
+
+### beforeResponse / afterResponse
+
+These hooks are called before sending a message (message is already added to the chat history) to the LLM and after receiving its response. Use them for request/response manipulation or monitoring.
+
+**Example: Log user messages and validate responses**
+
+```php
+/**
+ * @param ChatHistoryInterface $history
+ * @param MessageInterface|null $message
+ */
+protected function beforeResponse($history, $message)
+{
+    // Add context to the message
+    if ($message) {
+        Log::info('User message: ' . $message->getContent());
+    }
+    return true;
+}
+
+/**
+ * @param MessageInterface $message
+ */
+protected function afterResponse($message)
+{
+    // Process or validate the LLM response
+    if (is_array($message->getContent())) {
+        Log::info('Structured response received');
+    }
+    return true;
+}
+```
+
+### beforeToolExecution / afterToolExecution
+
+These hooks are triggered before and after a tool is executed. Perfect for tool-specific validation, logging, or result modification.
+
+**Example: Check permissions and format results**
+
+```php
+/**
+ * @param ToolInterface $tool
+ * @return bool
+ */
+protected function beforeToolExecution($tool)
+{
+    // Check tool permissions
+    if (!$this->hasToolPermission($tool->getName())) {
+        Log::warning("Unauthorized tool execution attempt: {$tool->getName()}");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @param ToolInterface $tool
+ * @param mixed &$result
+ * @return bool
+ */
+protected function afterToolExecution($tool, &$result)
+{
+    // Modify or format tool results
+    if (is_array($result)) {
+        // Since tool result is reference (&$result), we can safely modify it
+        $result = array_map(fn($item) => trim($item), $result);
+    }
+    return true;
+}
+```
+
+### beforeStructuredOutput
+
+This hook is called before processing structured output. Use it to modify or validate the response structure.
+
+**Example: Validate and enhance structured output**
+
+```php
+protected function beforeStructuredOutput(array &$response)
+{
+    // Return false if response contains something unexpected
+    if (!$this->checkArrayContent($response)) {
+        return false; // After returning false, the method stops executing and 'respond' will return `null`
+    }
+
+    // Add additional data to output
+    $response['timestamp'] = now()->timestamp;
+    return true;
+}
+```
+
+## Practical Use Cases
+
+Here are some common use cases for engine hooks:
+
+### Security and Validation
+
+- Filter out sensitive information before sending messages
+- Validate tool inputs and outputs
+- Enforce rate limiting or usage quotas
+
+### Logging and Monitoring
+
+- Track token usage and conversation metrics
+- Log user interactions for compliance
+- Monitor tool execution performance
+
+### Response Modification
+
+- Enhance responses with additional context
+- Format or standardize tool outputs
+- Add metadata to structured responses
+
+### Integration with External Systems
+
+- Sync conversation data with CRM systems
+- Trigger notifications based on conversation events
+- Update analytics dashboards in real-time
+
+## Best Practices
+
+1. **Return values matter** - Always return `true` unless you explicitly want to halt execution
+2. **Use exceptions for errors** - Throw exceptions where possible with clear messages instead of just returning `false`
+3. **Keep hooks lightweight** - Avoid heavy processing in hooks that run frequently
+4. **Be careful with references** - When modifying referenced parameters (like `&$result`), ensure you understand the implications
+5. **Test thoroughly** - Hooks can have subtle effects on the conversation flow, so test them carefully

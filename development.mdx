@@ -1,110 +1,133 @@
 ---
 title: "Development"
-description: "Preview changes locally to update your docs"
+description: "Contribute to LarAgent development"
 ---
 
-<Info>
-  **Prerequisite**: Please install Node.js (version 19 or higher) before
-  proceeding. <br />
-  Please upgrade to ```docs.json``` before proceeding and delete the legacy ```mint.json```
-  file.
-</Info>
+# Contributing to LarAgent
 
-Follow these steps to install and run Mintlify on your operating system:
+We welcome contributions to LarAgent! Whether it's improving documentation, fixing bugs, or adding new features, your help is appreciated. This guide will walk you through the process of setting up your development environment and submitting contributions.
 
-**Step 1**: Install Mintlify:
+<Warning>
+Need help in contributing? Join our [Discord community](https://discord.gg/NAczq2T9F8), send "@Maintainer 🛠️  onboard me" and we will help you to get started. 
+</Warning>
 
-<CodeGroup>
+## Development Setup
 
-```bash npm
-npm i -g mintlify
-```
+Follow these steps to set up your local development environment:
 
-```bash yarn
-yarn global add mintlify
-```
+1. **Fork the repository** on GitHub
 
-</CodeGroup>
+2. **Clone your fork**:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/LarAgent.git
+   cd LarAgent
+   ```
 
-**Step 2**: Navigate to the docs directory (where the `docs.json` file is located) and execute the following command:
+3. **Install dependencies**:
+   ```bash
+   composer install
+   ```
 
-```bash
-mintlify dev
-```
+4. **Create a new branch** for your feature or bugfix:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
 
-A local preview of your documentation will be available at `http://localhost:3000`.
+## Coding Guidelines
 
-### Custom Ports
+When contributing to LarAgent, please follow these guidelines to ensure your code meets our standards:
 
-By default, Mintlify uses port 3000. You can customize the port Mintlify runs on by using the `--port` flag. To run Mintlify on port 3333, for instance, use this command:
+### Code Style
 
-```bash
-mintlify dev --port 3333
-```
+- Use type hints and return types where possible
+- Add PHPDoc blocks for classes and methods
+- Keep methods focused and concise
+- Follow PSR-12 coding standards
 
-If you attempt to run Mintlify on a port that's already in use, it will use the next available port:
-
-```md
-Port 3000 is already in use. Trying 3001 instead.
-```
-
-## Mintlify Versions
-
-Please note that each CLI release is associated with a specific version of Mintlify. If your local website doesn't align with the production version, please update the CLI:
-
-<CodeGroup>
-
-```bash npm
-npm i -g mintlify@latest
-```
-
-```bash yarn
-yarn global upgrade mintlify
-```
-
-</CodeGroup>
-
-## Validating Links
-
-The CLI can assist with validating reference links made in your documentation. To identify any broken links, use the following command:
+LarAgent uses PHP CS Fixer to maintain code style. You can run it with:
 
 ```bash
-mintlify broken-links
+composer format
 ```
 
-## Deployment
+### Testing
 
-<Tip>
-  Unlimited editors available under the [Pro Plan](https://mintlify.com/pricing)
-  and above.
-</Tip>
+All new features and bug fixes should include tests. LarAgent uses [PEST](https://pestphp.com/) for testing.
 
-If the deployment is successful, you should see the following:
+- Add tests for new features
+- Ensure all tests pass before submitting:
+  ```bash
+  composer test
+  ```
+- Maintain or improve code coverage
 
-<Frame>
-  <img src="/images/checks-passed.png" style={{ borderRadius: "0.5rem" }} />
-</Frame>
+### Documentation
 
-## Code Formatting
+Good documentation is crucial for any project:
 
-We suggest using extensions on your IDE to recognize and format MDX. If you're a VSCode user, consider the [MDX VSCode extension](https://marketplace.visualstudio.com/items?itemName=unifiedjs.vscode-mdx) for syntax highlighting, and [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) for code formatting.
+- Add PHPDoc blocks for new classes and methods
+- Include examples for new features
+- Consider updating the [official documentation](https://github.com/MaestroError/docs) for major changes
 
-## Troubleshooting
+### Commit Guidelines
 
-<AccordionGroup>
-  <Accordion title='Error: Could not load the "sharp" module using the darwin-arm64 runtime'>
+- Use clear, descriptive commit messages
+- Reference issues and pull requests in your commits
+- Keep commits focused and atomic
 
-    This may be due to an outdated version of node. Try the following:
-    1. Remove the currently-installed version of mintlify: `npm remove -g mintlify`
-    2. Upgrade to Node v19 or higher.
-    3. Reinstall mintlify: `npm install -g mintlify`
+## Pull Request Process
 
-  </Accordion>
+Follow these steps to submit your contributions:
 
-  <Accordion title="Issue: Encountering an unknown error">
-  
-    Solution: Go to the root of your device and delete the \~/.mintlify folder. Afterwards, run `mintlify dev` again.
-  </Accordion>
-</AccordionGroup>
+1. **Update your fork** with the latest changes from main:
+   ```bash
+   git remote add upstream https://github.com/MaestroError/LarAgent.git
+   git fetch upstream
+   git rebase upstream/main
+   ```
 
-Curious about what changed in the CLI version? [Check out the CLI changelog.](https://www.npmjs.com/package/mintlify?activeTab=versions)
+2. **Push your changes** to your fork:
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+3. **Create a Pull Request** with:
+   - Clear title and description
+   - List of changes and impact
+   - Any breaking changes highlighted
+   - Screenshots/examples if relevant
+
+The maintainers aim to review all pull requests within 2 weeks.
+
+## Getting Help
+
+If you need assistance while contributing:
+
+- Open an issue for bugs or feature requests
+- Join discussions in existing issues
+- Join our [Discord community](https://discord.gg/NAczq2T9F8)
+- Reach out to maintainers for guidance
+
+## Security Vulnerabilities
+
+If you discover a security vulnerability, please review [our security policy](https://github.com/MaestroError/LarAgent/security/policy) on how to report it properly.
+
+## Running Tests
+
+You can run the test suite with:
+
+```bash
+composer test
+```
+
+For more specific tests:
+
+```bash
+# Run a specific test file
+./vendor/bin/pest tests/YourTestFile.php
+
+# Run with coverage report
+composer test-coverage
+```
+
+Thank you for contributing to LarAgent! Your efforts help make the package better for everyone.

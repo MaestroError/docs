@@ -7,188 +7,207 @@ description: "Learn how to use LarAgent in non-Laravel PHP projects by leveragin
 **Important Notice**: LarAgent will soon drop support for direct usage outside of Laravel. However, the core engine will be released as a separate package with the same API (methods/functions), ensuring continued support for non-Laravel projects.
 </Warning>
 
-## Using LarAgent Outside of Laravel
+## Understanding engine
 
 LarAgent's core functionality is powered by the `LarAgent\LarAgent` class, often referred to as the "LarAgent engine." This engine is a standalone component that contains all the abstractions and doesn't depend on Laravel. It manages agents, tools, chat histories, structured output, and other core features.
 
-<Frame>
-  <img src="/images/laragent-architecture.png" alt="LarAgent Architecture" />
-  <figcaption>LarAgent's architecture showing the standalone engine and Laravel integration</figcaption>
-</Frame>
+```mermaid
+flowchart TB
+    subgraph "LarAgent Engine"
+        Engine["LarAgent Core"]
+        HistoryManager["Chat History"]
+        LLMBridge["LLM Driver"]
+    end
+    
+    subgraph "Agent configuration"
+        StructuredOutput["Structured Output"]
+        ParallelToolCalls["Parallel Tool Calls"]
+        Other["Other"]
+    end
+    
+    subgraph "Manages tools"
+        RegisterTools["Register Tools"]
+        ExecutesToolCalls["Executes Tool Calls"]
+    end
+    
+    subgraph "Lifecycle Hooks"
+        beforeSend
+        beforeResponse
+        afterResponse
+        afterSend
+        beforeSaveHistory
+    end
+    
+    subgraph "Lifecycle Hooks (Optional)"
+        beforeToolExecution
+        afterToolExecution
+        beforeStructuredOutput
+        beforeReinjectingInstructions
+    end
+    
+    Application["Application"] --> Engine
+    Engine --> HistoryManager
+    Engine --> LLMBridge
+
+    Engine --> beforeSend
+    beforeSend --> beforeResponse
+    beforeResponse --> afterResponse
+    afterResponse --> afterSend
+    afterSend --> beforeSaveHistory
+    
+    Engine --> RegisterTools
+    RegisterTools <--> ExecutesToolCalls
+
+    Engine --> StructuredOutput
+    StructuredOutput <--> ParallelToolCalls
+    ParallelToolCalls <--> Other
+    
+    class Engine,LLMBridge,HistoryManager,ToolManager,LifecycleHooks primary
+    class AgentConfig,Tools,ParallelTools,StructuredOutput,InstructionRejection,ParallelToolCalls,RegisterTools,ExecutesToolCalls secondary
+    
+    classDef primary fill:#4f46e5,stroke:#312e81,color:white
+    classDef secondary fill:#818cf8,stroke:#4f46e5,color:white
+```
 
 ## Getting Started
 
 To use LarAgent outside of Laravel, you'll need to handle some configuration and initialization manually:
 
 ```php
-use LarAgent\LarAgent;
-use LarAgent\History\InMemoryChatHistory;
+<?php
+
+require_once __DIR__.'/vendor/autoload.php';
+
 use LarAgent\Drivers\OpenAi\OpenAiDriver;
+use LarAgent\History\InMemoryChatHistory;
+use LarAgent\LarAgent;
+use LarAgent\Message;
 
-// Create configuration
-$config = [
-    'api_key' => 'your-openai-api-key',
-    'model' => 'gpt-4',
-    'temperature' => 0.7,
-];
+// Setup
+$yourApiKey = 'your-openai-api-key'; // Replace with your actual API key
+$driver = new OpenAiDriver(['api_key' => $yourApiKey]);
+$chatKey = 'test-chat-history';
+$chatHistory = new InMemoryChatHistory($chatKey);
 
-// Initialize the engine
-$engine = new LarAgent($config);
-
-// Create a chat history
-$chatHistory = new InMemoryChatHistory('my-chat-session');
-
-// Set system instructions
-$engine->setInstructions("You are a helpful assistant.");
+$agent = LarAgent::setup($driver, $chatHistory, [
+    'model' => 'gpt-4o-mini',
+]);
 
 // Add a message and get a response
-$response = $engine->respond("Hello, how can you help me?", $chatHistory);
+$userMessage = Message::user('Hello, how can you help me?');
+$agent->withMessage($userMessage);
+$response = $agent->run();
 
 echo $response;
 ```
 
-## Configuring the Engine
+## Configuring Structured Output
 
-When using LarAgent outside of Laravel, you'll need to provide configuration directly:
+You can define structured output schemas to get responses in a specific format:
 
 ```php
-$config = [
-    // Required configuration
-    'api_key' => 'your-openai-api-key',
-    
-    // Optional configuration with defaults
-    'model' => 'gpt-4',                      // Default model to use
-    'temperature' => 0.7,                    // Response creativity (0.0-2.0)
-    'max_completion_tokens' => 1000,         // Maximum tokens in completion
-    'context_window_size' => 16000,          // Maximum tokens in context window
-    'reinject_instructions_per' => 0,        // Reinject instructions every N messages (0 = disabled)
-    'driver' => OpenAiDriver::class,         // LLM driver class
-    'api_url' => null,                       // Custom API URL (for compatible providers)
+// Define a structured output schema
+$weatherInfoSchema = [
+    'name' => 'weather_info',
+    'schema' => [
+        'type' => 'object',
+        'properties' => [
+            'locations' => [
+                'type' => 'array',
+                'items' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'city' => ['type' => 'string'],
+                        'weather' => ['type' => 'string'],
+                    ],
+                    'required' => ['city', 'weather'],
+                    'additionalProperties' => false,
+                ],
+            ],
+        ],
+        'required' => ['locations'],
+        'additionalProperties' => false,
+    ],
+    'strict' => true,
 ];
 
-$engine = new LarAgent($config);
+// Use the schema with the agent
+$userMessage = Message::user('What\'s the weather like in Boston and Los Angeles? I prefer celsius');
+$agent->structured($weatherInfoSchema)->withMessage($userMessage);
+$response = $agent->run();
+
+// The response will be a structured array
+print_r($response);
+
+/* Outputs:
+Array
+(
+    [locations] => Array
+        (
+            [0] => Array
+                (
+                    [city] => Boston, MA
+                    [weather] => The weather is 22 degrees Celsius.
+                )
+
+            [1] => Array
+                (
+                    [city] => Los Angeles, CA
+                    [weather] => The weather is 22 degrees Celsius.
+                )
+        )
+)
+*/
 ```
 
 ## Adding Tools
 
-You can add tools to the engine using the `addTool` method:
+You can add tools to the agent using the `Tool` class:
 
-<CodeGroup>
-```php Basic Tool
+```php
 use LarAgent\Tool;
 
-// Create a simple tool
-$weatherTool = Tool::create('get_weather', 'Get weather information for a location')
-    ->addProperty('location', 'string', 'The city and state')
-    ->setCallback(function($location) {
-        return "The weather in {$location} is sunny and 75°F";
+// Create a tool
+$toolName = 'get_current_weather';
+
+$tool = Tool::create($toolName, 'Get the current weather in a given location');
+
+$tool->addProperty('location', 'string', 'The city and state, e.g. San Francisco, CA')
+    ->addProperty('unit', 'string', 'The unit of temperature', ['celsius', 'fahrenheit'])
+    ->setRequired('location')
+    ->setMetaData(['sent_at' => '2024-01-01'])
+    ->setCallback(function ($location, $unit = 'fahrenheit') {
+        // "Call the weather API"
+        return 'The weather in '.$location.' is 72 degrees '.$unit;
     });
 
-// Add the tool to the engine
-$engine->addTool($weatherTool);
+// Add the tool to the agent
+$agent->setTools([$tool]);
 ```
 
-```php Tool Class
-use LarAgent\Tool;
+## Use Chat History
 
-class WeatherTool extends Tool
-{
-    protected string $name = 'get_weather';
-    protected string $description = 'Get weather information for a location';
-    protected array $properties = [
-        'location' => [
-            'type' => 'string',
-            'description' => 'The city and state',
-        ],
-    ];
-    
-    public function execute(array $input): mixed
-    {
-        $location = $input['location'];
-        return "The weather in {$location} is sunny and 75°F";
-    }
-}
-
-// Add the tool to the engine
-$engine->addTool(new WeatherTool());
-```
-</CodeGroup>
-
-## Managing Chat History
-
-Outside of Laravel, you'll need to manage chat history instances manually:
+Outside of Laravel, you'll need to create and pass chat history instance into setup method:
 
 ```php
 use LarAgent\History\JsonChatHistory;
 
-// Create a persistent JSON-based chat history
-$chatHistory = new JsonChatHistory('user-123');
+// Setup
+$yourApiKey = 'your-openai-api-key'; // Replace with your actual API key
+$driver = new OpenAiDriver(['api_key' => $yourApiKey]);
+$chatHistory = new JsonChatHistory('test-chat-history');
 
-// Use the chat history for a conversation
-$response = $engine->respond("Hello", $chatHistory);
+$agent = LarAgent::setup($driver, $chatHistory, [
+    'model' => 'gpt-4o-mini',
+]);
 
-// Later, continue the conversation with the same history
-$response = $engine->respond("What were we talking about?", $chatHistory);
-
-// Clear the history when needed
-$chatHistory->clear();
 ```
+There is 2 availble chat history classes for usage outside of Laravel:
 
-## Structured Output
+- `JsonChatHistory`
+- `InMemoryChatHistory`
 
-You can define structured output schemas just like in Laravel:
-
-```php
-use LarAgent\LarAgent;
-
-$engine = new LarAgent([/* config */]);
-
-// Define a structured output schema
-$schema = [
-    'name' => 'user_profile',
-    'schema' => [
-        'type' => 'object',
-        'properties' => [
-            'name' => ['type' => 'string'],
-            'age' => ['type' => 'number'],
-            'interests' => [
-                'type' => 'array',
-                'items' => ['type' => 'string'],
-            ],
-        ],
-        'required' => ['name', 'age', 'interests'],
-    ],
-];
-
-// Set the schema
-$engine->setStructuredOutput($schema);
-
-// Get a structured response
-$response = $engine->respond("Create a profile for John Doe", $chatHistory);
-// Returns: ['name' => 'John Doe', 'age' => 30, 'interests' => ['coding', 'hiking']]
-```
-
-## Streaming Responses
-
-Streaming works similarly to the Laravel implementation:
-
-```php
-$stream = $engine->respondStreamed(
-    "Tell me a long story",
-    $chatHistory,
-    function ($chunk) {
-        if ($chunk instanceof \LarAgent\Messages\StreamedAssistantMessage) {
-            echo $chunk->getLastChunk();
-            flush();
-        }
-    }
-);
-
-// Consume the stream
-foreach ($stream as $_) {
-    // The callback handles the output
-}
-```
+You can easily implement your own, check [custom-chat-history](customization/custom-chat-history) for more information.
 
 ## Differences from Laravel Usage
 
@@ -201,8 +220,8 @@ When using LarAgent outside of Laravel, be aware of these key differences:
   <Card title="No Artisan Commands" icon="terminal">
     You won't have access to the helpful artisan commands for generating agents and tools.
   </Card>
-  <Card title="Manual Chat History" icon="history">
-    You need to create and manage chat history instances yourself.
+  <Card title="LangChain-like usage" icon="book">
+    Instead of classes, you will create Agents using `LarAgent::setup()`
   </Card>
   <Card title="No Service Container" icon="box">
     You can't leverage Laravel's service container for dependency injection.
@@ -223,3 +242,67 @@ The standalone engine will offer:
 - The same powerful features you're used to in LarAgent
 
 Stay tuned to the [official repository](https://github.com/MaestroError/LarAgent) for announcements about this upcoming change.
+
+## Complete Example
+
+Here's a complete example combining structured output, tools, and custom instructions:
+
+```php
+use LarAgent\Drivers\OpenAi\OpenAiDriver;
+use LarAgent\History\InMemoryChatHistory;
+use LarAgent\LarAgent;
+use LarAgent\Message;
+use LarAgent\Messages\ToolCallMessage;
+use LarAgent\Tool;
+
+// Setup
+$driver = new OpenAiDriver(['api_key' => $yourApiKey]);
+$chatHistory = new InMemoryChatHistory('weather-chat');
+
+$agent = LarAgent::setup($driver, $chatHistory, [
+    'model' => 'gpt-4o-mini',
+]);
+
+// Create a weather tool
+$weatherTool = Tool::create('get_current_weather', 'Get the current weather in a given location')
+    ->addProperty('location', 'string', 'The city and state, e.g. San Francisco, CA')
+    ->addProperty('unit', 'string', 'The unit of temperature', ['celsius', 'fahrenheit'])
+    ->setRequired('location')
+    ->setCallback(function ($location, $unit = 'fahrenheit') {
+        return 'The weather in '.$location.' is 72 degrees '.$unit;
+    });
+
+// Define structured output schema
+$weatherInfoSchema = [
+    'name' => 'weather_info',
+    'schema' => [
+        'type' => 'object',
+        'properties' => [
+            'locations' => [
+                'type' => 'array',
+                'items' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'city' => ['type' => 'string'],
+                        'weather' => ['type' => 'string'],
+                    ],
+                    'required' => ['city', 'weather'],
+                ],
+            ],
+        ],
+        'required' => ['locations'],
+    ],
+    'strict' => true,
+];
+
+// Set up the agent with all components
+$userMessage = Message::user('What\'s the weather like in Boston and Los Angeles? I prefer celsius');
+$instructions = 'You are weather assistant and always respond using celsius. If it provided as fahrenheit, convert it to celsius.';
+
+$agent->setTools([$weatherTool])
+    ->structured($weatherInfoSchema)
+    ->withInstructions($instructions)
+    ->withMessage($userMessage);
+
+// Get the structured response
+$response = $agent->run();
