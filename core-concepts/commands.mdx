@@ -1,0 +1,78 @@
+---
+title: "Commands"
+description: "Artisan commands available in LarAgent for managing AI agents"
+---
+
+# Commands
+
+LarAgent provides several Artisan commands to help you create and manage your AI agents. These commands streamline the development process and make it easier to interact with your agents.
+
+## Creating an Agent
+
+You can quickly create a new agent using the `make:agent` command:
+
+```bash
+php artisan make:agent AgentName
+```
+
+This will create a new agent class in your `app/AiAgents` directory with the basic structure and methods needed to get started. The generated agent includes:
+
+- Default model configuration
+- In-memory chat history
+- Default provider setting
+- Empty tools array
+- Placeholder for instructions and prompt methods
+
+## Interactive Chat
+
+You can start an interactive chat session with any of your agents using the `agent:chat` command:
+
+```bash
+# Start a chat with default history name
+php artisan agent:chat AgentName
+
+# Start a chat with a specific history name
+php artisan agent:chat AgentName --history=weather_chat_1
+```
+
+The interactive chat session provides the following capabilities:
+
+- Send messages to your agent
+- Get responses in real-time
+- Use any tools configured for the agent
+- Type 'exit' to end the chat session
+
+This is particularly useful for testing your agent's functionality and behavior directly from the command line without needing to implement a full UI.
+
+## Clear Chat History
+
+You can clear all chat histories for a specific agent using the `agent:chat:clear` command:
+
+```bash
+php artisan agent:chat:clear AgentName
+```
+
+This command clears all chat histories for the specified agent while preserving the chat history structure and keys. This is useful when you want to reset conversations but maintain the same history identifiers.
+
+## Remove Chat History
+
+You can completely remove all chat histories and keys for a specific agent using the `agent:chat:remove` command:
+
+```bash
+php artisan agent:chat:remove AgentName
+```
+
+This command removes all chat histories and their associated keys for the specified agent, effectively resetting the chat history completely. Use this when you want to completely remove all traces of previous conversations.
+
+<Warning>
+Both, `remove` and `clear` commands will affect the current type of chat history. For example, if you were using `session` chat history, and later switched to `file`, both commands will remove from the `file` (current type of chat history) storage.
+</Warning>
+
+## Planned Commands
+
+LarAgent has plans to add more commands in the future to enhance developer experience:
+
+- `make:agent:tool` - Generate tool classes with ready-to-use stubs
+- `make:agent:chat-history` - Scaffold custom chat history implementations
+
+These upcoming commands will further simplify the development process and make it easier to extend LarAgent's functionality.
