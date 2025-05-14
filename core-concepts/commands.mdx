@@ -1,9 +1,7 @@
 ---
-title: "Commands"
+title: "Artisan Commands"
 description: "Artisan commands available in LarAgent for managing AI agents"
 ---
-
-# Commands
 
 LarAgent provides several Artisan commands to help you create and manage your AI agents. These commands streamline the development process and make it easier to interact with your agents.
 
@@ -65,7 +63,10 @@ php artisan agent:chat:remove AgentName
 This command removes all chat histories and their associated keys for the specified agent, effectively resetting the chat history completely. Use this when you want to completely remove all traces of previous conversations.
 
 <Warning>
-Both, `remove` and `clear` commands will affect the current type of chat history. For example, if you were using `session` chat history, and later switched to `file`, both commands will remove from the `file` (current type of chat history) storage.
+  Both, `remove` and `clear` commands will affect the current type of chat
+  history. For example, if you were using `session` chat history, and later
+  switched to `file`, both commands will remove from the `file` (current type of
+  chat history) storage.
 </Warning>
 
 ## Planned Commands

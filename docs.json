@@ -30,6 +30,7 @@
               "core-concepts/structured-output",
               "core-concepts/streaming",
               "core-concepts/llm-drivers",
+              "core-concepts/artisan-commands",
               "core-concepts/usage-without-laravel"
             ]
           },
