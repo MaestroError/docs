@@ -4,7 +4,9 @@ description: "Chat history stores conversations between users and agents, enabli
 ---
 
 <Note>
-Chat history is a crucial component that allows your agents to maintain context across multiple interactions, providing a more natural and coherent conversation experience.
+  Chat history is a crucial component that allows your agents to maintain
+  context across multiple interactions, providing a more natural and coherent
+  conversation experience.
 </Note>
 
 ## Built-in Chat Histories
@@ -54,7 +56,7 @@ LarAgent provides several built-in chat history implementations to suit differen
 
     // Stores chat history in memory (lost after each request)
     $history = new InMemoryChatHistory('user-123');
-    
+
     // Or in JSON files
     $history = new JsonChatHistory('user-123', ['folder' => __DIR__.'/json_History']);
 
@@ -62,8 +64,9 @@ LarAgent provides several built-in chat history implementations to suit differen
     $agent = LarAgent::setup($driver, $history, [
         'model' => 'gpt-4', // or any other model
     ]);
-  ```
-  </Tab>
+
+````
+</Tab>
 </Tabs>
 
 ## Chat History Configuration
@@ -75,12 +78,13 @@ You can configure how chat history behaves using these properties in your Agent 
 ```php
 /** @var int - Number of messages after which to reinject the agent's instructions */
 protected $reinjectInstructionsPer;
-```
+````
 
 Instructions are always injected at the beginning of the chat history. The `$reinjectInstructionsPer` property defines when to reinject these instructions to ensure the agent stays on track. By default, it's set to `0` (disabled).
 
 <Tip>
-Reinjecting instructions can be useful for long conversations where the agent might drift from its original purpose or forget important constraints.
+  Reinjecting instructions can be useful for long conversations where the agent
+  might drift from its original purpose or forget important constraints.
 </Tip>
 
 ### Managing Context Window Size
@@ -92,24 +96,22 @@ protected $contextWindowSize;
 
 After the context window is exceeded, the oldest messages are removed until the context window is satisfied or the limit is reached. This helps manage token usage and ensures the conversation stays within the model's context limits.
 
-
 ### How chat history works
-
 
 ```mermaid
     flowchart LR
         %% Main components
         User([User])
         LLM([LLM provider])
-        
+
         %% Group Agent and ChatHistory together
         subgraph Framework["Agent class"]
             Agent([Agent])
             ChatHistory[Chat History]
-            
+
             %% Internal relationship
         end
-        
+
         %% External relationships
         User -->|#1 sends prompt| Agent
         Agent -->|#2 processes prompt and adds message| ChatHistory
@@ -130,13 +132,14 @@ The flow of information in the chat history process works as follows:
 7. **Agent to User**: The agent displays the last message from the chat history to the user.
 
 Throughout this process, the Context Window Management system:
+
 - Tracks all messages in the conversation
 - Counts tokens to ensure they stay within model limits
 - Prunes older messages when necessary to maintain the context window size
 
 #### Extensibility
 
-You can implement custom logic for context window management using [events](/customization/events) and the chat history instance inside your agent. 
+You can implement custom logic for context window management using [events](/customization/events) and the chat history instance inside your agent.
 Or create [custom chat history](#creating-custom-chat-histories) implementations by implementing the `ChatHistoryInterface`.
 
 ## Using Chat History
@@ -194,7 +197,8 @@ $messagesArray = $history->toArray();
 
 // Convert messages to array with metadata
 $messagesWithMeta = $history->toArrayWithMeta();
-```
+
+````
 
 ```php Managing History
 // Clear the current chat history
@@ -216,8 +220,16 @@ $history->setContextWindow(4000);
 if (!$history->exceedsContextWindow(500)) {
     // Safe to add more content
 }
-```
+````
+
 </CodeGroup>
+
+<Note>
+  The `addMessage(MessageInterface $message)` method adds a new message to the
+  chat history instance, which will be saved automatically by the agent class if
+  you are using it in agent context. In other case, you can save it manually
+  using `writeToMemory()` method.
+</Note>
 
 ## Creating Custom Chat Histories
 
@@ -228,10 +240,13 @@ Check example implementations in [src/History](https://github.com/MaestroError/L
 There are two ways to register your custom chat history into an agent. If you use standard constructor only with `$name` parameter, you can define it by class in `$history` property or provider configuration:
 
 **Agent Class**
+
 ```php
 protected $history = \App\ChatHistories\CustomChatHistory::class;
 ```
+
 **Provider Configuration (config/laragent.php)**
+
 ```php
 'chat_history' => \App\ChatHistories\CustomChatHistory::class,
 ```
@@ -248,18 +263,22 @@ public function createChatHistory($name)
 ## Best Practices
 
 <Check>
-**Do** choose the appropriate chat history implementation based on your needs (persistence, performance, etc.)
+  **Do** choose the appropriate chat history implementation based on your needs
+  (persistence, performance, etc.)
 </Check>
 
 <Check>
-**Do** set a reasonable context window size to balance coherence and token usage
+  **Do** set a reasonable context window size to balance coherence and token
+  usage
 </Check>
 
 <Check>
-**Do** use unique identifiers for chat histories to prevent cross-contamination
+  **Do** use unique identifiers for chat histories to prevent
+  cross-contamination
 </Check>
 
-<Icon icon="x" iconType="solid" color="red" />  **Don't** store sensitive information in chat histories without proper encryption
+<Icon icon="x" iconType="solid" color="red" /> **Don't** store sensitive information
+in chat histories without proper encryption
 
-<Icon icon="x" iconType="solid" color="red" />  **Don't** neglect to clear chat histories when they're no longer needed
-
+<Icon icon="x" iconType="solid" color="red" /> **Don't** neglect to clear chat histories
+when they're no longer needed
