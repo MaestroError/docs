@@ -89,14 +89,7 @@ public function weatherTool($location, $unit = 'celsius')
 The agent will automatically register the tool with the given description and extract method information, including parameter names and types.
 
 <Warning>
-  You can add tools without properties (= Method without parameters). In this
-  case, we are automatically adding an optional property named "no_properties",
-  which is NULL by default and has description "empty" to instruct LLM that
-  there is no need for property. But note that, in some cases (rarely), LLM
-  tried to pass the property "no_properties" anyway causing the error `Unknown
-  named parameter $no_properties`. So, it is recommended to have at least 1
-  property in your tool. If there logically isn't a chance to have a property,
-  just add dumb enum property with only 1 possible value.
+  You can add tools without properties (= Method without parameters)
 </Warning>
 
 #### Using Enum Types with Tools
