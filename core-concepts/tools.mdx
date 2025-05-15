@@ -4,7 +4,9 @@ description: "Tools extend your agent's capabilities, allowing it to perform tas
 ---
 
 <Note>
-Tools (also known as function calling) allow your AI agents to interact with external systems, APIs, and services, greatly expanding their capabilities beyond simple text generation.
+  Tools (also known as function calling) allow your AI agents to interact with
+  external systems, APIs, and services, greatly expanding their capabilities
+  beyond simple text generation.
 </Note>
 
 ## Tool Configuration
@@ -20,7 +22,8 @@ protected $tools = [];
 ```
 
 <Tip>
-You can set `$parallelToolCalls` to `null` if you want to remove it from the request, as some models (o1) do not support parallel tool calls.
+  You can set `$parallelToolCalls` to `null` if you want to remove it from the
+  request, as some models (o1) do not support parallel tool calls.
 </Tip>
 
 ## Creating Tools
@@ -28,14 +31,24 @@ You can set `$parallelToolCalls` to `null` if you want to remove it from the req
 There are three ways to create and register tools in your agent:
 
 <CardGroup cols={3}>
-  <Card title="#[Tool] Attribute" icon="wand-magic-sparkles" href="#1-using-the-tool-attribute">
+  <Card
+    title="#[Tool] Attribute"
+    icon="wand-magic-sparkles"
+    href="#1-using-the-tool-attribute"
+  >
     Best for service-based or static tools specific to a single agent.
   </Card>
-  <Card title="registerTools Method" icon="code" href="#2-using-the-registerTools-method">
-    Ideal for dynamically creating tools based on runtime conditions or user state.
+  <Card
+    title="registerTools Method"
+    icon="code"
+    href="#2-using-the-registerTools-method"
+  >
+    Ideal for dynamically creating tools based on runtime conditions or user
+    state.
   </Card>
   <Card title="Tool Classes" icon="puzzle-piece" href="#3-using-tool-classes">
-    Perfect for complex tools that may be reused across multiple agents or require extensive logic.
+    Perfect for complex tools that may be reused across multiple agents or
+    require extensive logic.
   </Card>
 </CardGroup>
 
@@ -52,7 +65,8 @@ public function weatherTool($location, $unit = 'celsius')
 {
     return 'The weather in '.$location.' is '.'20'.' degrees '.$unit;
 }
-```
+
+````
 
 ```php Tool with Parameter Descriptions
 use LarAgent\Attributes\Tool;
@@ -68,10 +82,22 @@ public function weatherTool($location, $unit = 'celsius')
 {
     return 'The weather in '.$location.' is '.'20'.' degrees '.$unit;
 }
-```
+````
+
 </CodeGroup>
 
 The agent will automatically register the tool with the given description and extract method information, including parameter names and types.
+
+<Warning>
+  You can add tools without properties (= Method without parameters). In this
+  case, we are automatically adding an optional property named "no_properties",
+  which is NULL by default and has description "empty" to instruct LLM that
+  there is no need for property. But note that, in some cases (rarely), LLM
+  tried to pass the property "no_properties" anyway causing the error `Unknown
+  named parameter $no_properties`. So, it is recommended to have at least 1
+  property in your tool. If there logically isn't a chance to have a property,
+  just add dumb enum property with only 1 possible value.
+</Warning>
 
 #### Using Enum Types with Tools
 
@@ -96,7 +122,7 @@ use App\Enums\Unit;
 #[Tool(
     'Get the current weather in a given location',
     [
-        'unit' => 'Unit of temperature', 
+        'unit' => 'Unit of temperature',
         'location' => 'The city and state, e.g. San Francisco, CA'
     ]
 )]
@@ -107,7 +133,8 @@ public static function weatherToolForNewYork(Unit $unit, $location = 'New York')
 ```
 
 <Tip>
-It's recommended to use the `#[Tool]` attribute with static methods if there's no need for the agent instance (`$this`).
+  It's recommended to use the `#[Tool]` attribute with static methods if there's
+  no need for the agent instance (`$this`).
 </Tip>
 
 ### 2. Using the registerTools Method
@@ -117,7 +144,7 @@ This method allows you to programmatically create and register tools using the `
 ```php
 use LarAgent\Tool;
 
-public function registerTools() 
+public function registerTools()
 {
     $user = auth()->user();
     return [
@@ -133,7 +160,9 @@ public function registerTools()
 ```
 
 <Tip>
-`setCallback` method accepts any [php callable](https://www.php.net/manual/en/language.types.callable.php), such as a function name, a closure, or a class method.
+  `setCallback` method accepts any [php
+  callable](https://www.php.net/manual/en/language.types.callable.php), such as
+  a function name, a closure, or a class method.
 </Tip>
 
 ### 3. Using Tool Classes
@@ -149,9 +178,7 @@ protected $tools = [
 
 #### Example Tool Class
 
-<Note>
-Tool creation artisan command is comming soon...
-</Note>
+<Note>Tool creation artisan command is comming soon...</Note>
 
 ```php
 class WeatherTool extends LarAgent\Tool
@@ -199,18 +226,20 @@ $agent->removeTool('get_current_weather');
 ## Best Practices
 
 <Check>
-**Do** create separate tool classes for complex functionality that might be reused
+  **Do** create separate tool classes for complex functionality that might be
+  reused
 </Check>
 
 <Check>
-**Do** provide clear, descriptive names and parameter descriptions
+  **Do** provide clear, descriptive names and parameter descriptions
 </Check>
 
 <Check>
-**Do** use Enums when you need to restrict the AI to specific options
+  **Do** use Enums when you need to restrict the AI to specific options
 </Check>
 
+<Icon icon="x" iconType="solid" color="red" /> **Don't** create tools with ambiguous
+functionality or unclear parameter requirements
 
-<Icon icon="x" iconType="solid" color="red" /> **Don't** create tools with ambiguous functionality or unclear parameter requirements
-
-<Icon icon="x" iconType="solid" color="red" /> **Don't** expose sensitive operations without proper validation and security checks
+<Icon icon="x" iconType="solid" color="red" /> **Don't** expose sensitive operations
+without proper validation and security checks
