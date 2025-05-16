@@ -206,14 +206,36 @@ class WeatherTool extends LarAgent\Tool
 
 ## Chainable Tool Methods
 
-You can dynamically add or remove tools during runtime using these methods:
+You can dynamically add or remove tools during runtime using `withTool` and `removeTool` methods:
 
+**Add tool with instance**
 ```php
-// Add a tool for this specific call
-$agent->withTool(new WeatherTool());
+$tool = Tool::create('test_tool', 'Test tool')->setCallback(fn () => 'test');
+$agent->withTool($tool);
+```
 
-// Remove a tool for this specific call (use tool name or getName() method)
+**Add tool with predefined tool class**
+```php
+$agent->withTool(WeatherTool::class);
+```
+
+**Remove tool by name**
+```php
 $agent->removeTool('get_current_weather');
+```
+
+**Remove tool by instance**
+```php
+$tool = Tool::create('test_tool', 'Test tool')->setCallback(fn () => 'test');
+$agent->withTool($tool);
+if (!$needsTool) {
+    $agent->removeTool($tool);
+}
+```
+
+**Remove tool by class name**
+```php
+$agent->removeTool(WeatherTool::class);
 ```
 
 ## Best Practices
