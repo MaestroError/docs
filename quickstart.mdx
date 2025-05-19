@@ -43,7 +43,7 @@ The published configuration file contains the following default settings:
 
 ```php
 return [
-    'default_driver' => \LarAgent\Drivers\OpenAi\OpenAiDriver::class,
+    'default_driver' => \LarAgent\Drivers\OpenAi\OpenAiCompatible::class,
     'default_chat_history' => \LarAgent\History\InMemoryChatHistory::class,
 
     'providers' => [
@@ -55,6 +55,8 @@ return [
             'default_temperature' => 1,
         ],
     ],
+
+    'fallback_provider' => 'default',
 ];
 ```
 

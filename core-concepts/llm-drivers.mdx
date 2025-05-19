@@ -25,6 +25,9 @@ Check [Creating Custom Drivers](#creating-custom-drivers) for more details about
   <Card title="OpenAiCompatible" icon="plug">
     Works with any OpenAI-compatible API, allowing you to use alternative backends with the same API format.
   </Card>
+  <Card title="GeminiDriver" icon="google">
+    Works with Google Gemini API via OpenAI compatible endpoint
+  </Card>
 </CardGroup>
 
 ## Configuring Drivers
@@ -118,8 +121,7 @@ protected $model = 'anthropic/claude-3-opus'; // Or any other model available on
 'gemini' => [
     'label' => 'gemini',
     'model'=>'gemini-2.5-pro-preview-03-25',
-    'driver'=>\LarAgent\Drivers\OpenAi\OpenAiCompatible::class,
-    'api_url'=>'https://generativelanguage.googleapis.com/v1beta/openai',
+    'driver'=>\LarAgent\Drivers\OpenAi\GeminiDriver::class,
     'api_key' => env('GEMINI_API_KEY'),
 ]
 ```
@@ -129,34 +131,62 @@ protected $model = 'anthropic/claude-3-opus'; // Or any other model available on
 protected $provider = 'gemini';
 ```
 
-## Using Multiple Providers
+## Fallback Provider
 
-You can configure multiple providers and switch between them as needed:
-
+There is a fallback provider that is used when the current provider fails to process a request.
+By default, it's set to the default provider:
 ```php
-// Configure different agents to use different providers
-class CreativeAgent extends Agent
-{
-    protected $provider = 'anthropic'; // Points to a provider in your config
-    protected $model = 'claude-3-opus';
-}
+// File: config/laragent.php
+'fallback_provider' => 'default',
+```
+<Note>
+  Fallback provider currently works only for respond method and doesn't work for streaming.
+</Note>
 
-class EconomicalAgent extends Agent
-{
-    protected $provider = 'openai';
-    protected $model = 'gpt-3.5-turbo';
-}
+You can set any provider as fallback provider in configuration file, just replace "default" with your provider name:
+
+**Example configuration**
+```php {32}
+return [
+    // ...
+    'providers' => [
+        'default' => [
+            'name' => 'openai',
+            'model' => 'gpt-4o-mini',
+            'driver' => \LarAgent\Drivers\OpenAi\OpenAiCompatible::class,
+            'api_key' => env('OPENAI_API_KEY'),
+            'default_context_window' => 50000,
+            'default_max_completion_tokens' => 100,
+            'default_temperature' => 1,
+        ],
+        'ollama' => [
+            'name' => 'ollama-local',
+            // Required configs for fallback provider:
+            'model' => 'llama3.2',
+            'api_key' => 'ollama',
+            'api_url' => "http://localhost:11434/v1",
+            'driver' => \LarAgent\Drivers\OpenAi\OpenAiCompatible::class,
+        ],
+        'gemini' => [
+            'name' => 'gemini provider',
+            'model' => 'model-GEMINI',
+            'driver' => \LarAgent\Drivers\OpenAi\GeminiDriver::class,
+            'api_key' => env('GEMINI_API_KEY'),
+            'default_context_window' => 500000,
+            'default_max_completion_tokens' => 10000,
+            'default_temperature' => 0.8,
+        ],
+    ],
+
+    'fallback_provider' => 'ollama',
+];
 ```
 
-You can also switch providers at runtime:
+<Warning>
+It is recommended to have a 'model' set in provider which is used as a fallback.
+</Warning>
 
-```php
-// Switch provider based on user preference or other conditions
-$provider = $user->premium ? 'premium-provider' : 'standard-provider';
-$agent = MyAgent::for('chat-session')
-    ->withProvider($provider)
-    ->respond('Hello, how can you help me?');
-```
+You can disable fallback provider by setting `fallback_provider` to `null` in configuration file or just by removing it.
 
 ## LLM Drivers Architecture
 

@@ -185,7 +185,7 @@ Agents can be configured through various properties and methods to customize the
 </Tabs>
 
 #### Core methods
-The agent also provides three core methods that you can override to customize its behavior:
+The agent also provides several core methods that you can override to customize its behavior:
 
 <CodeGroup>
 ```php Instructions Method
@@ -220,6 +220,24 @@ public function prompt(string $message)
 public function model()
 {
     return $this->model;
+}
+```
+
+```php API Key / URL
+/**
+ * Dynamically set the API URL for the driver
+ */
+public function getApiUrl()
+{
+    return $this->apiUrl;
+}
+
+/**
+ * Dynamically set the API Key for the driver
+ */
+public function getApiKey()
+{
+    return $this->apiKey;
 }
 ```
 </CodeGroup>

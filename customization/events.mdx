@@ -116,6 +116,21 @@ protected function onTerminate()
 }
 ```
 
+### onEngineError 
+
+This hook is called when the provider (or underlying engine) fails to process a request, right before trying to call the fallback provider.
+
+**Example: Log provider error**
+
+```php
+protected function onEngineError(\Throwable $th)
+{
+    Log::info('Provider failed', [
+        'error' => $th->getMessage(),
+    ]);
+}
+```
+
 ## Using Laravel Events with Agent Hooks
 
 LarAgent hooks can be integrated with Laravel's event system to provide more flexibility and better separation of concerns. This allows you to:
