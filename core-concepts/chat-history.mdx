@@ -251,12 +251,19 @@ protected $history = \App\ChatHistories\CustomChatHistory::class;
 'chat_history' => \App\ChatHistories\CustomChatHistory::class,
 ```
 
-If you need any other configuration other than `$name`, you can override `createChatHistory()` method:
+If you need any configuration other than `$name`, you can override `createChatHistory()` method:
 
 ```php
 public function createChatHistory($name)
 {
-    return new \App\ChatHistories\CustomChatHistory($name, ['folder' => __DIR__.'/history']);
+    return new \App\ChatHistories\CustomChatHistory($name, [
+      // Added config
+      'folder' => __DIR__.'/history',
+      // Default configs used inside Agent class:
+      'context_window' => $this->contextWindowSize,
+      'store_meta' => $this->storeMeta,
+      'save_chat_keys' => $this->saveChatKeys,
+    ]);
 }
 ```
 
