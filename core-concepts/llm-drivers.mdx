@@ -131,6 +131,10 @@ protected $model = 'anthropic/claude-3-opus'; // Or any other model available on
 protected $provider = 'gemini';
 ```
 
+<Note>
+  Gemini driver doesn't support streaming yet.
+</Note>
+
 ## Fallback Provider
 
 There is a fallback provider that is used when the current provider fails to process a request.
