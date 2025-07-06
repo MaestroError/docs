@@ -204,6 +204,34 @@ class WeatherTool extends LarAgent\Tool
 }
 ```
 
+## Tool choice
+
+You can set the tool choice for your agent using the following methods:
+
+```php
+// Disable tools for this specific call:
+WeatherAgent::for('test_chat')->toolNone()->respond('What is my name?');
+
+// Require at least 1 tool call for this specific call:
+WeatherAgent::for('test_chat')->toolRequired()->respond('Who is president of US?');
+
+// Force specific tool to be used for this specific call:
+WeatherAgent::for('test_chat')->forceTool('weatherToolForNewYork')->respond('What is weather in New York?');
+```
+
+<Note>
+`forceTool` method requires tool's name as a parameter.
+</Note>
+
+<Warning>
+`toolRequired` & `forceTool` is set only at the first call, after that it will automatically switched to 'auto' avoiding infinite loop.
+</Warning>
+
+If tools are registered, default value is 'auto', otherwise it's 'none'.
+```php
+protected $toolChoice = 'auto';
+```
+
 ## Chainable Tool Methods
 
 You can dynamically add or remove tools during runtime using `withTool` and `removeTool` methods:
@@ -238,6 +266,11 @@ if (!$needsTool) {
 $agent->removeTool(WeatherTool::class);
 ```
 
+**Set toolChoice property**
+```php
+// @param  string|array|null  $toolChoice  Tool choice configuration
+$agent->setToolChoice('none');
+```
 ## Best Practices
 
 <Check>
