@@ -190,6 +190,10 @@ protected $model = 'gpt-4o';
 
 #### Other properties
 
+<Warning>
+    All config properties have relevant setter (chainable methods) you can use to set them at runtime. For example, `$maxCompletionTokens` -> `maxCompletionTokens(int $tokens)`, `$topP` -> `topP(float $topP)` and etc.
+</Warning>
+
 ##### **Tokens**
 ```php
 /** @var int - Set the maximum number of tokens in the completion */
@@ -229,6 +233,8 @@ protected $n;
 ```
 
 > How many chat completion choices to generate for each input message. Note that you will be charged based on the number of generated tokens across all of the choices. Keep n as 1 to minimize costs.
+
+In case of $n > 1, the agent will return an array of responses.
 
 ##### **top_p**
 ```php

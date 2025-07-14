@@ -122,7 +122,10 @@ $response = $agent->respond("What's the weather like today?");
 
 ## Runtime Schema Management
 
-The schema can be accessed or modified using the `structuredOutput()` method at runtime:
+The schema can be accessed or modified at runtime.
+
+### Access schema
+The schema can be accessed using the `structuredOutput()` method:
 
 ```php
 // Get current schema
@@ -132,6 +135,31 @@ $schema = $agent->structuredOutput();
 if ($agent->structuredOutput()) {
     // Handle structured response
 }
+```
+
+### Modify or set schema
+The schema can be modified using the `responseSchema()` method:
+
+```php
+// responseSchema(?array $schema)
+
+$agent->responseSchema([
+    'name' => 'user_profile',
+    'schema' => [
+        'type' => 'object',
+        'properties' => [
+            'name' => ['type' => 'string'],
+            'age' => ['type' => 'number'],
+            'interests' => [
+                'type' => 'array',
+                'items' => ['type' => 'string']
+            ],
+        ],
+        'required' => ['name', 'age', 'interests'],
+        'additionalProperties' => false,
+    ],
+    'strict' => true,
+]);
 ```
 
 ## Example Use Cases
