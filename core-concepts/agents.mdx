@@ -275,7 +275,7 @@ The simplest way is to use the `for()` method to specify a chat history name and
 echo WeatherAgent::for('test_chat')->respond('What is the weather like?');
 ```
 
-### Chainable Methods
+### Using Chainable Methods
 
 For more control over the interaction, you can use the chainable syntax:
 
@@ -287,15 +287,65 @@ $response = WeatherAgent::for('test_chat')
     ->respond();                            // Get the response
 ```
 
-```php User-specific Chaining
-// Different histories for different users
-echo WeatherAgent::for('user_1_chat')->respond('What is the weather like?');
-echo WeatherAgent::for('user_2_chat')->respond('How about tomorrow?');
-echo WeatherAgent::forUser(auth()->user())->respond('How about tomorrow?');
+```php Advanced Chaining
+// Override default settings
+echo WeatherAgent::for('user_1_chat')
+    ->message('What is the weather like?')
+    ->withModel('gpt-4o')
+    ->withTemperature(0.7)
+    ->withMaxTokens(2000)
+    ->withN(3)
+    ->withTool(new WeatherTool())
+    ->respond();
 ```
 </CodeGroup>
 
-## Chainable Methods Reference
+#### Ready made user message
+
+Instead of passing a string as a message, you can build your own UserMessage instance.
+It allows you to add metadata to the message, such as the user ID or request ID.
+Also, using different methods associated with UserMessage instance.
+
+```php
+$userMessage = Message::user($finalPrompt, ['userRequest' => $userRequestId]);
+
+$response = WeatherAgent::for('test_chat')->message($userMessage)->respond();
+```
+
+<Warning>
+  If you use UserMessage instance instead string, it will bypass the `prompt` method.
+</Warning>
+
+### Image input
+
+You can pass publicly accessible image URLs to the agent as an array of strings.
+
+```php
+$images = [
+    'https://example.com/image.jpg',
+    'https://example.com/image2.jpg',
+];
+
+$response = WeatherAgent::for('test_chat')->withImages($images)->respond();
+```
+
+### Audio input
+
+You can pass base64 encoded audio data to the agent as an array of arrays containing the `format` and `data`.
+Supported formats by OpenAI: "wav", "mp3", "ogg", "flac", "m4a", "webm"
+
+```php
+$audios = [
+    [
+        'format' => 'mp3',
+        'data' => $base64Audio
+    ]
+];
+
+echo WeatherAgent::for('test_chat')->withAudios($audios)->respond();
+```
+
+## Agent Mutators Reference
 
 Here are some chainable methods to modify the agent's behavior on the fly:
 
@@ -305,7 +355,7 @@ Here are some chainable methods to modify the agent's behavior on the fly:
   /**
    * Set the message for the agent to process
    */
-  public function message(string $message);
+  public function message(string|UserMessage $message);
   ```
   
   Sets the message that will be sent to the AI model.
@@ -332,6 +382,33 @@ Here are some chainable methods to modify the agent's behavior on the fly:
   // Example
   $agent->message('What's in this image?')
         ->withImages(['https://example.com/image.jpg'])
+        ->respond();
+  ```
+  </Accordion>
+  
+  <Accordion title="withAudios() - Add audios">
+  ```php
+  /**
+   * Add audios to the agent's input (message)
+   * Array of arrays: ['data' => 'base64', 'format' => 'wav']
+   * Possible formats: "wav", "mp3", "ogg", "flac", "m4a", "webm"
+   * @param array $audioStrings Array of audio data
+   */
+  public function withAudios(array $audioStrings);
+  ```
+  
+  Adds audios to the message, use for multimodal models.
+  
+  ```php
+  // Example
+    $audios = [
+        [
+            'format' => 'mp3',
+            'data' => $base64Audio
+        ]
+    ];
+  $agent->message('What's in this audio?')
+        ->withAudios($audios)
         ->respond();
   ```
   </Accordion>
@@ -364,7 +441,8 @@ Here are some chainable methods to modify the agent's behavior on the fly:
   ```
   
   Adds a custom message to the chat history. MessageInterface: Easily created with Message class: `Message::system('Your message here')`
-  
+  Use with caution, as it is added directly to the chat history and keep in mind that history needs to keep certain structure defined by openai.
+
   ```php
   // Example
   use LarAgent\Message;
@@ -461,7 +539,7 @@ Clear the chat history. This removes all messages from the chat history
   </Accordion>
 </AccordionGroup>
 
-## Agent Accessors
+## Agent Accessors Reference
 
 You can access the agent's properties using these methods on an instance of the agent:
 
@@ -599,9 +677,51 @@ You can access the agent's properties using these methods on an instance of the 
   }
   ```
   </Accordion>
+  
+
+  <Accordion title="getModalities() - Get modalities">
+  ```php
+  /**
+   * Get all modalities associated with this agent class
+   */
+  public function getModalities(): array;
+  ```
+  
+  Returns all modalities associated with this agent class.
+  
+  ```php
+  // Example
+  $modalities = $agent->getModalities();
+  // Returns: ["text", "image", "audio"]
+  ```
+  </Accordion>
+
+  <Accordion title="getAudio() - Get audio">
+  ```php
+  /**
+   * Get all audio associated with this agent class
+   */
+  public function getAudio(): ?array;
+  ```
+  
+  Returns all audio associated with this agent class.
+  
+  ```php
+  // Example
+  $audio = $agent->getAudio();
+  // Returns: null or array of audio data containing arrays of format and data
+  // [
+  //     [
+  //         'format' => 'mp3',
+  //         'data' => $base64Audio
+  //     ]
+  // ]
+  ```
+  </Accordion>
 </AccordionGroup>
 
-### Example Configuration
+
+## Example Configuration
 
 ```php
 class WeatherAgent extends Agent
