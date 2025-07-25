@@ -320,6 +320,24 @@ $response = WeatherAgent::for('test_chat')->message($userMessage)->respond();
   If you use UserMessage instance instead string, it will bypass the `prompt` method.
 </Warning>
 
+#### Return message
+By default, `respond` method returns:
+- `string` with regular request
+- `array` of `string` if `$n` is greater than 1.
+- `array` Associative array of defined structured output schema.
+
+You can change the return type by using `returnMessage` method or setting `$returnMessage` property to `true`,
+which will enforce `respond` method to return MessageInterface instance.
+
+```php
+// Returns MessageInterface -> AssistantMessage instance
+$response = WeatherAgent::for('test_chat')->returnMessage()->respond();
+```
+<Warning>
+  If `returnMessage` is true and structured output is defined, `beforeStructuredOutput` hook will not happen,
+  because structured output is not processed to array.
+</Warning>
+
 ### Image input
 
 You can pass publicly accessible image URLs to the agent as an array of strings.
