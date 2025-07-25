@@ -96,7 +96,25 @@ protected $contextWindowSize;
 
 After the context window is exceeded, the oldest messages are removed until the context window is satisfied or the limit is reached. This helps manage token usage and ensures the conversation stays within the model's context limits.
 
-### How chat history works
+### Managing chatHistory SessionId
+
+```php
+/** @var bool - Whether to include model name in chat session id */
+protected $includeModelInChatSessionId;
+```
+
+By default it is set to `false` (disabled). If you want to include model name in chat session id, set it to `true`.
+
+<Warning>
+  Before v0.5 model name was used in chat history key by default: `AgentName_ModelName_UserId`. 
+  To keep old code compatible set it to `true` in your agent classes.
+</Warning>
+
+Agent automatically appends the **Agent class basename** and **model name** used on each message's metadata to keep track of the agent and model used.
+You can access metadata of message using `getMetadata()` method or store it in chat history automatically by setting `storeMeta` property to `true` in your agent class.
+Check [Storing usage data](#storing-usage-data) section for more information.
+
+## How chat history works
 
 ```mermaid
     flowchart LR
