@@ -28,11 +28,19 @@ Check [Creating Custom Drivers](#creating-custom-drivers) for more details about
   <Card title="GeminiDriver" icon="google">
     Works with Google Gemini API via OpenAI compatible endpoint
   </Card>
+  <Card title="GroqDriver" icon="twitter">
+    Works with Groq platform API, add `GROQ_API_KEY` to your `.env` file and use "groq" provider in your agents
+  </Card>
 </CardGroup>
 
 ## Configuring Drivers
 
 You can configure LLM drivers in two ways:
+
+<Note>
+There are `default` (OpenAI) `gemini` & `groq` drivers pre-configured in `config/laragent.php` providers. 
+You can use them right away or delete which isn't needed.
+</Note>
 
 ### 1. Global Configuration
 
@@ -121,15 +129,22 @@ protected $model = 'anthropic/claude-3-opus'; // Or any other model available on
 'gemini' => [
     'label' => 'gemini',
     'model'=>'gemini-2.5-pro-preview-03-25',
-    'driver'=>\LarAgent\Drivers\OpenAi\GeminiDriver::class,
     'api_key' => env('GEMINI_API_KEY'),
-]
+    'driver' => \LarAgent\Drivers\OpenAi\GeminiDriver::class,
+    'default_context_window' => 1000000,
+    'default_max_completion_tokens' => 10000,
+    'default_temperature' => 1,
+],
 ```
 
 ```php
 // In your agent class
 protected $provider = 'gemini';
 ```
+
+<Note>
+  Gemini driver doesn't support streaming yet.
+</Note>
 
 ## Fallback Provider
 
@@ -139,9 +154,6 @@ By default, it's set to the default provider:
 // File: config/laragent.php
 'fallback_provider' => 'default',
 ```
-<Note>
-  Fallback provider currently works only for respond method and doesn't work for streaming.
-</Note>
 
 You can set any provider as fallback provider in configuration file, just replace "default" with your provider name:
 

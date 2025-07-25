@@ -82,6 +82,10 @@ public function chat(Request $request)
 
 The `streamResponse` method supports three formats:
 
+- Plain Text
+- JSON
+- Server-Sent Events (SSE)
+
 <Tabs>
   <Tab title="Plain Text">
     ```php
@@ -196,6 +200,8 @@ The `streamResponse` method supports three formats:
     ```
   </Tab>
 </Tabs>
+
+---
 
 ## Streaming with Structured Output
 
