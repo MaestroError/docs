@@ -194,6 +194,10 @@ protected $model = 'gpt-4o';
     All config properties have relevant setter (chainable methods) you can use to set them at runtime. For example, `$maxCompletionTokens` -> `maxCompletionTokens(int $tokens)`, `$topP` -> `topP(float $topP)` and etc.
 </Warning>
 
+<Warning>
+    All config properties can be defined by config file in provider settings. For example, `$maxCompletionTokens` -> `max_completion_tokens => 2000` and etc.
+</Warning>
+
 ##### **Tokens**
 ```php
 /** @var int - Set the maximum number of tokens in the completion */

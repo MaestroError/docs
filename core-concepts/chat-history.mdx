@@ -267,6 +267,54 @@ public function createChatHistory($name)
 }
 ```
 
+## Storing usage data
+
+You can store usage data (if available) automatically in the chat history by setting `store_meta` config or `$storeMeta` property to `true`:
+
+```php
+protected $storeMeta = true;
+```
+
+This will store usage data (if available) in the chat history as metadata of message. 
+Each message supports `toArrayWithMeta()` method to get array with metadata:
+
+```php
+// Example
+$message = $message->toArrayWithMeta();
+
+// Result
+[
+  // Other message properties
+  'usage' => [
+    'prompt_tokens' => 10,
+    'completion_tokens' => 20,
+    'total_tokens' => 30,
+    // Other usage details
+  ],
+]
+```
+
+<Warning>
+  Before v0.5 keys was stored as `promptTokens` (camelCase) instead of `prompt_tokens` (snake_case), so make sure to update your code if you were using it.
+</Warning>
+
+Alternatively, you can store usage data manually using `afterResponse` hooks in your agent class:
+```php
+protected function afterResponse($message)
+{
+    $messageArray = $message->toArrayWithMeta();
+    
+    // Store usage data
+    Usage::create([
+        'agent_name' => class_basename($this),
+        'user_id' => auth()->user()->id,
+        'prompt_tokens' => $messageArray['usage']['prompt_tokens'],
+        'completion_tokens' => $messageArray['usage']['completion_tokens'],
+        'total_tokens' => $messageArray['usage']['total_tokens'],
+    ]);
+}
+```
+
 ## Best Practices
 
 <Check>
