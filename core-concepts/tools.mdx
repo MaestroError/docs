@@ -204,6 +204,81 @@ class WeatherTool extends LarAgent\Tool
 }
 ```
 
+## Tool choice
+
+You can set the tool choice for your agent using the following methods:
+
+```php
+// Disable tools for this specific call:
+WeatherAgent::for('test_chat')->toolNone()->respond('What is my name?');
+
+// Require at least 1 tool call for this specific call:
+WeatherAgent::for('test_chat')->toolRequired()->respond('Who is president of US?');
+
+// Force specific tool to be used for this specific call:
+WeatherAgent::for('test_chat')->forceTool('weatherToolForNewYork')->respond('What is weather in New York?');
+```
+
+<Note>
+`forceTool` method requires tool's name as a parameter.
+</Note>
+
+<Warning>
+`toolRequired` & `forceTool` is set only at the first call, after that it will automatically switched to 'auto' avoiding infinite loop.
+</Warning>
+
+If tools are registered, default value is 'auto', otherwise it's 'none'.
+```php
+protected $toolChoice = 'auto';
+```
+
+## Phantom Tools 👻
+
+Phantom Tools are dynamically registered tools that are not executed on the LarAgent side, but instead returns [`ToolCallMessage`](https://github.com/MaestroError/LarAgent/blob/ed4f0611f98ca93815443da3de6c987f0ee88450/src/Messages/ToolCallMessage.php#L7)
+
+<CodeGroup>
+```php at runtime
+use LarAgent\PhantomTool;
+
+// ...
+
+// Create a Phantom tool with properties and custom callback
+$PhantomTool = PhantomTool::create('Phantom_tool', 'Get the current weather in a given location')
+            ->addProperty('location', 'string', 'The city and state, e.g. San Francisco, CA')
+            ->setRequired('location')
+            ->setCallback("PhantomTool");
+
+// Register the Phantom tool with the agent
+$agent->withTool($PhantomTool);
+```
+
+```php in Agent class
+use LarAgent\PhantomTool;
+
+// ...
+
+public function registerTools()
+{
+    return [
+        PhantomTool::create('Phantom_tool', 'Get the current weather in a given location')
+            ->addProperty('location', 'string', 'The city and state, e.g. San Francisco, CA')
+            ->setRequired('location')
+            ->setCallback("PhantomTool"),
+    ];
+}
+```
+</CodeGroup>
+
+Phantom Tools are particularly useful when:
+- You need to integrate with external services dynamically
+- You want to handle tool execution outside of LarAgent
+- You need to make tool registration/execution available from API
+
+<Tip>
+  Phantom Tools follow the same interface as regular tools but instead of automatical execution, they return [`ToolCallMessage`](https://github.com/MaestroError/LarAgent/blob/ed4f0611f98ca93815443da3de6c987f0ee88450/src/Messages/ToolCallMessage.php#L7) instance, providing more flexibility
+  in terms of when and how they are executed.
+</Tip>
+
 ## Chainable Tool Methods
 
 You can dynamically add or remove tools during runtime using `withTool` and `removeTool` methods:
@@ -238,6 +313,17 @@ if (!$needsTool) {
 $agent->removeTool(WeatherTool::class);
 ```
 
+**Set toolChoice property**
+```php
+// @param  string|array|null  $toolChoice  Tool choice configuration
+$agent->setToolChoice('none');
+```
+
+**Enable/Disable parallel tool calls**
+```php
+// @param bool|null $parallel Parallel tool calls configuration
+$agent->parallelToolCalls(true);
+```
 ## Best Practices
 
 <Check>
