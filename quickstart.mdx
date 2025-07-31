@@ -81,9 +81,17 @@ return [
             'default_max_completion_tokens' => 131072,
             'default_temperature' => 1,
         ],
+
+        'ollama' => [
+            'label' => 'ollama',
+            'driver' => \LarAgent\Drivers\OpenAi\OllamaDriver::class,
+            'default_context_window' => 131072,
+            'default_max_completion_tokens' => 131072,
+            'default_temperature' => 0.8,
+        ],
     ],
 
-    'fallback_provider' => 'default',
+    'fallback_provider' => null,
 ];
 
 ```

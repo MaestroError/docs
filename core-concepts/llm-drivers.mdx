@@ -31,6 +31,9 @@ Check [Creating Custom Drivers](#creating-custom-drivers) for more details about
   <Card title="GroqDriver" icon="twitter">
     Works with Groq platform API, add `GROQ_API_KEY` to your `.env` file and use "groq" provider in your agents
   </Card>
+  <Card title="OllamaDriver" icon="meta">
+    Works with Ollama platform API, use "ollama" provider in your agents and any models you have installed with Ollama
+  </Card>
 </CardGroup>
 
 ## Configuring Drivers
@@ -83,14 +86,13 @@ If you set the driver in the agent class, it will override the global configurat
 ```php
 // File: config/laragent.php
 'providers' => [
+    
     'ollama' => [
-        'label' => 'ollama-local',
-        'driver' => \LarAgent\Drivers\OpenAi\OpenAiCompatible::class,
-        'api_key' => 'ollama', // Can be any string for Ollama
-        'api_url' => "http://localhost:11434/v1",
-        'default_context_window' => 50000,
-        'default_max_completion_tokens' => 100,
-        'default_temperature' => 1,
+        'label' => 'ollama',
+        'driver' => \LarAgent\Drivers\OpenAi\OllamaDriver::class,
+        'default_context_window' => 131072,
+        'default_max_completion_tokens' => 131072,
+        'default_temperature' => 0.8,
     ],
 ],
 ```
@@ -149,13 +151,13 @@ protected $provider = 'gemini';
 ## Fallback Provider
 
 There is a fallback provider that is used when the current provider fails to process a request.
-By default, it's set to the default provider:
+By default, it's set to `null`:
 ```php
 // File: config/laragent.php
-'fallback_provider' => 'default',
+'fallback_provider' => null,
 ```
 
-You can set any provider as fallback provider in configuration file, just replace "default" with your provider name:
+You can set any provider as fallback provider in configuration file, just replace `null` with your provider name:
 
 **Example configuration**
 ```php {32}
@@ -171,14 +173,6 @@ return [
             'default_max_completion_tokens' => 100,
             'default_temperature' => 1,
         ],
-        'ollama' => [
-            'name' => 'ollama-local',
-            // Required configs for fallback provider:
-            'model' => 'llama3.2',
-            'api_key' => 'ollama',
-            'api_url' => "http://localhost:11434/v1",
-            'driver' => \LarAgent\Drivers\OpenAi\OpenAiCompatible::class,
-        ],
         'gemini' => [
             'name' => 'gemini provider',
             'model' => 'model-GEMINI',
@@ -190,7 +184,7 @@ return [
         ],
     ],
 
-    'fallback_provider' => 'ollama',
+    'fallback_provider' => 'gemini',
 ];
 ```
 
@@ -198,7 +192,7 @@ return [
 It is recommended to have a 'model' set in provider which is used as a fallback.
 </Warning>
 
-You can disable fallback provider by setting `fallback_provider` to `null` in configuration file or just by removing it.
+You can disable fallback provider again by setting `fallback_provider` to `null` in configuration file or just by removing it.
 
 ## LLM Drivers Architecture
 
