@@ -351,6 +351,20 @@ $images = [
 $response = WeatherAgent::for('test_chat')->withImages($images)->respond();
 ```
 
+Alternative way to pass images is to use base64 encoded data.
+
+```php
+$imageUrls = [
+    'data:image/jpeg;base64,' . base64_encode($img)
+];
+
+$response = ImageAgent::for('test')->withImages($imageUrls)->respond("Analyze images");
+```
+
+<Note>
+  Base64 image input Contributed by [havspect](https://github.com/havspect) in [issue #74](https://github.com/MaestroError/LarAgent/issues/74).
+</Note>
+
 ### Audio input
 
 You can pass base64 encoded audio data to the agent as an array of arrays containing the `format` and `data`.
