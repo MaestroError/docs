@@ -1,6 +1,6 @@
 ---
-title: 'Quickstart'
-description: 'Get started with LarAgent in minutes'
+title: "Quickstart"
+description: "Get started with LarAgent in minutes"
 ---
 
 ## Requirements
@@ -37,9 +37,9 @@ If you are using OpenAI API, just set your API key in your `.env` file and you a
 OPENAI_API_KEY=your-openai-api-key
 ```
 
-### Basic Configuration
+### Configuration file
 
-The published configuration file contains the following default settings:
+The published configuration file contains the following settings and default providers:
 
 ```php
 // config for Maestroerror/LarAgent
@@ -74,16 +74,42 @@ return [
         'groq' => [
             'label' => 'groq',
             'api_key' => env('GROQ_API_KEY'),
-            'api_url' => 'https://api.groq.com/openai/v1',
-            'model' => 'llama-3.1-8b-instant',
             'driver' => \LarAgent\Drivers\Groq\GroqDriver::class,
             'default_context_window' => 131072,
             'default_max_completion_tokens' => 131072,
             'default_temperature' => 1,
         ],
+
+        'claude' => [
+            'label' => 'claude',
+            'api_key' => env('ANTHROPIC_API_KEY'),
+            'model' => 'claude-3-7-sonnet-latest',
+            'driver' => \LarAgent\Drivers\Anthropic\ClaudeDriver::class,
+            'default_context_window' => 200000,
+            'default_max_completion_tokens' => 8192,
+            'default_temperature' => 1,
+        ],
+
+        'openrouter' => [
+            'label' => 'openrouter',
+            'api_key' => env('OPENROUTER_API_KEY'),
+            'model' => 'openai/gpt-oss-20b:free',
+            'driver' => \LarAgent\Drivers\OpenAi\OpenRouter::class,
+            'default_context_window' => 200000,
+            'default_max_completion_tokens' => 8192,
+            'default_temperature' => 1,
+        ],
+
+        'ollama' => [
+            'label' => 'ollama',
+            'driver' => \LarAgent\Drivers\OpenAi\OllamaDriver::class,
+            'default_context_window' => 131072,
+            'default_max_completion_tokens' => 131072,
+            'default_temperature' => 0.8,
+        ],
     ],
 
-    'fallback_provider' => 'default',
+    'fallback_provider' => null,
 ];
 
 ```
@@ -171,18 +197,10 @@ class WeatherAgent extends Agent
 Now that you have LarAgent set up, you can explore more advanced features:
 
 <CardGroup>
-  <Card
-    title="Agents"
-    icon="user-robot"
-    href="/core-concepts/agents"
-  >
+  <Card title="Agents" icon="user-robot" href="/core-concepts/agents">
     Learn more about creating and configuring agents
   </Card>
-  <Card
-    title="Tools"
-    icon="screwdriver-wrench"
-    href="/core-concepts/tools"
-  >
+  <Card title="Tools" icon="screwdriver-wrench" href="/core-concepts/tools">
     Discover how to create powerful tools for your agents
   </Card>
   <Card
@@ -192,11 +210,7 @@ Now that you have LarAgent set up, you can explore more advanced features:
   >
     Get responses in structured formats like JSON
   </Card>
-  <Card
-    title="Streaming"
-    icon="wave-sine"
-    href="/core-concepts/streaming"
-  >
+  <Card title="Streaming" icon="wave-sine" href="/core-concepts/streaming">
     Stream responses in real-time for better UX
   </Card>
 </CardGroup>
