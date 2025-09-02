@@ -4,7 +4,9 @@ description: "LLM Drivers provide a flexible interface to connect with different
 ---
 
 <Note>
-LLM Drivers allow you to switch between different AI providers (like OpenAI, Ollama, or OpenRouter) without changing your application code, providing flexibility and vendor independence.
+  LLM Drivers allow you to switch between different AI providers (like OpenAI,
+  Ollama, or OpenRouter) without changing your application code, providing
+  flexibility and vendor independence.
 </Note>
 
 ## Understanding LLM Drivers
@@ -15,24 +17,39 @@ The built-in drivers implement this interface and provide a simple way to use va
 
 Check [Creating Custom Drivers](#creating-custom-drivers) for more details about building custom drivers.
 
-
 ## Available Drivers
 
-<CardGroup cols={2}>
-  <Card title="OpenAiDriver" icon="robot">
-    Default driver for OpenAI API. Works with minimal configuration - just add your `OPENAI_API_KEY` to your `.env` file.
+<CardGroup cols={1}>
+  <Card title="OpenAiDriver" icon="robot" horizontal>
+    Default driver for OpenAI API. Works with minimal configuration - just add
+    your `OPENAI_API_KEY` to your `.env` file.
   </Card>
-  <Card title="OpenAiCompatible" icon="plug">
-    Works with any OpenAI-compatible API, allowing you to use alternative backends with the same API format.
+  <Card title="OpenAiCompatible" icon="plug" horizontal>
+    Works with any OpenAI-compatible API, allowing you to use alternative
+    providers with the same API format.
   </Card>
-  <Card title="GeminiDriver" icon="google">
-    Works with Google Gemini API via OpenAI compatible endpoint
+  <Card title="GeminiDriver" icon="google" horizontal>
+    Works with Google Gemini API via OpenAI-compatible endpoint
   </Card>
-  <Card title="GroqDriver" icon="twitter">
-    Works with Groq platform API, add `GROQ_API_KEY` to your `.env` file and use "groq" provider in your agents
+  <Card title="ClaudeDriver" icon="star-christmas" horizontal>
+    Works with Anthropic API, located at
+    `LarAgent\Drivers\Anthropic\ClaudeDriver`. Add `ANTHROPIC_API_KEY` to your
+    `.env` file and use "claude" provider in your agent.
   </Card>
-  <Card title="OllamaDriver" icon="meta">
-    Works with Ollama platform API, use "ollama" provider in your agents and any models you have installed with Ollama
+  <Card title="GroqDriver" icon="twitter" horizontal>
+    Works with [Groq](https://console.groq.com/home) platform API, using as
+    `LarAgent\Drivers\Groq\GroqDriver`. Simply add `GROQ_API_KEY` to your `.env`
+    file and use "groq" provider in your agents
+  </Card>
+  <Card title="OllamaDriver" icon="meta" horizontal>
+    Works with Ollama platform API, use "ollama" provider in your agents and any
+    models you have installed with Ollama
+  </Card>
+  <Card title="OpenRouter" icon="split" horizontal>
+    Works with OpenRouter API, supports [APP
+    attribution](https://openrouter.ai/docs/app-attribution) via adding
+    `referer` and `title` keys to provider settings. By default, they are set as
+    LarAgent.
   </Card>
 </CardGroup>
 
@@ -41,8 +58,8 @@ Check [Creating Custom Drivers](#creating-custom-drivers) for more details about
 You can configure LLM drivers in two ways:
 
 <Note>
-There are `default` (OpenAI) `gemini` & `groq` drivers pre-configured in `config/laragent.php` providers. 
-You can use them right away or delete which isn't needed.
+  There are all drivers pre-configured in `config/laragent.php` providers. You
+  can use them right away or delete which isn't needed.
 </Note>
 
 ### 1. Global Configuration
@@ -75,8 +92,10 @@ class YourAgent extends Agent
     // Other agent configuration
 }
 ```
+
 <Warning>
-If you set the driver in the agent class, it will override the global configuration.
+  If you set the driver in the agent class, it will override the global
+  configuration.
 </Warning>
 
 ## Example Configurations
@@ -86,7 +105,7 @@ If you set the driver in the agent class, it will override the global configurat
 ```php
 // File: config/laragent.php
 'providers' => [
-    
+
     'ollama' => [
         'label' => 'ollama',
         'driver' => \LarAgent\Drivers\OpenAi\OllamaDriver::class,
@@ -127,6 +146,7 @@ protected $model = 'anthropic/claude-3-opus'; // Or any other model available on
 ```
 
 ### Gemini
+
 ```php
 'gemini' => [
     'label' => 'gemini',
@@ -144,14 +164,13 @@ protected $model = 'anthropic/claude-3-opus'; // Or any other model available on
 protected $provider = 'gemini';
 ```
 
-<Note>
-  Gemini driver doesn't support streaming yet.
-</Note>
+<Note>Gemini driver doesn't support streaming yet.</Note>
 
 ## Fallback Provider
 
 There is a fallback provider that is used when the current provider fails to process a request.
 By default, it's set to `null`:
+
 ```php
 // File: config/laragent.php
 'fallback_provider' => null,
@@ -160,6 +179,7 @@ By default, it's set to `null`:
 You can set any provider as fallback provider in configuration file, just replace `null` with your provider name:
 
 **Example configuration**
+
 ```php {32}
 return [
     // ...
@@ -189,7 +209,8 @@ return [
 ```
 
 <Warning>
-It is recommended to have a 'model' set in provider which is used as a fallback.
+  It is recommended to have a 'model' set in provider which is used as a
+  fallback.
 </Warning>
 
 You can disable fallback provider again by setting `fallback_provider` to `null` in configuration file or just by removing it.
@@ -199,20 +220,20 @@ You can disable fallback provider again by setting `fallback_provider` to `null`
 ```mermaid
 flowchart TD
     Agent[Agent] --> LlmDriver[LLM Driver]
-    
+
     subgraph AbstractionLayer["LLM Driver Abstraction"]
         LlmDriver -->|#0 Set configs model, temperature, etc. | Config[Configuration]
         LlmDriver -->|#1 Register Tools| Tools[Tools Registry]
         LlmDriver -->|#2 Set Response Schema| Schema[Response Schema]
         LlmDriver -->|#3 Format Tool Calls| Formatter[Tool Call structure]
     end
-    
+
     subgraph Implementations["Provider Implementations"]
         LlmDriver --> OpenAI[OpenAI Driver]
         LlmDriver --> Compatible[OpenAI Compatible]
         LlmDriver --> Anthropic[Anthropic Driver]
     end
-    
+
     OpenAI --> LLMProvider[OpenAI API]
     Compatible --> LLMCompat[Ollama/Gemini/Other API]
     Anthropic --> LLMAnthropic[Anthropic API]
@@ -243,12 +264,12 @@ use LarAgent\ToolCall;
 
 class CustomProviderDriver extends LlmDriver implements LlmDriverInterface
 {
-    
+
     public function sendMessage(array $messages, array $options = []): AssistantMessage
     {
         // Implement the API call to your provider
     }
-    
+
     public function sendMessageStreamed(array $messages, array $options = [], ?callable $callback = null): \Generator
     {
         // Implement streaming for your custom provider
@@ -258,7 +279,7 @@ class CustomProviderDriver extends LlmDriver implements LlmDriverInterface
     {
         // Implement tool calls to message conversion
     }
-    
+
     public function toolResultToMessage(ToolCallInterface $toolCall, mixed $result): array
     {
         // Implement tool result to message conversion
@@ -288,17 +309,19 @@ Check [Base OpenAI driver](https://github.com/MaestroError/LarAgent/blob/main/sr
 ## Best Practices
 
 <Check>
-**Do** store API keys in environment variables, never hardcode them
+  **Do** store API keys in environment variables, never hardcode them
 </Check>
 
 <Check>
-**Do** set reasonable defaults for context window and token limits
+  **Do** set reasonable defaults for context window and token limits
 </Check>
 
 <Check>
-**Do** consider implementing fallback mechanisms between providers
+  **Do** consider implementing fallback mechanisms between providers
 </Check>
 
-<Icon icon="x" iconType="solid" color="red" /> **Don't** expose sensitive provider configuration in client-side code
+<Icon icon="x" iconType="solid" color="red" /> **Don't** expose sensitive provider
+configuration in client-side code
 
-<Icon icon="x" iconType="solid" color="red" /> **Don't** assume all providers support the same features (like function calling or parallel tool execution)
+<Icon icon="x" iconType="solid" color="red" /> **Don't** assume all providers support
+the same features (like function calling or parallel tool execution)
