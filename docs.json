@@ -32,6 +32,7 @@
               "core-concepts/llm-drivers",
               "core-concepts/agent-via-api",
               "core-concepts/commands",
+              "core-concepts/rag",
               "core-concepts/usage-without-laravel"
             ]
           },
@@ -42,6 +43,24 @@
               "customization/hooks",
               "customization/custom-driver",
               "customization/custom-chat-history"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "General",
+            "pages": [
+              "guides/introduction"
+            ]
+          },
+          {
+            "group": "RAG",
+            "pages": [
+              "guides/rag/vector-based",
+              "guides/rag/retrieval-as-tool"
             ]
           }
         ]
