@@ -4,7 +4,8 @@ description: "Agents are the core of LarAgent. They represent an AI model that c
 ---
 
 <Note>
-Agents are the foundation of LarAgent. They define how your AI assistant behaves, what tools it can use, and how it processes information.
+  Agents are the foundation of LarAgent. They define how your AI assistant
+  behaves, what tools it can use, and how it processes information.
 </Note>
 
 ## Creating an Agent
@@ -12,7 +13,7 @@ Agents are the foundation of LarAgent. They define how your AI assistant behaves
 You can create a new agent manually by extending the `LarAgent\Agent` class. This is the parent class for building your custom AI agent with specific capabilities and behaviors.
 
 <Warning>
-Using `make:agent` command is a recommended way of creating agents.
+  Using `make:agent` command is a recommended way of creating agents.
 </Warning>
 
 ```php
@@ -67,9 +68,8 @@ class YourAgentName extends Agent
 
 Agents can be configured through various properties and methods to customize their behavior. Here are the core configuration options:
 
-
-
 ### Core methods
+
 The agent also provides several core methods that you can override to customize its behavior:
 
 <CodeGroup>
@@ -81,9 +81,10 @@ The agent also provides several core methods that you can override to customize 
 // For more complex instructions or dynamic behavior, use the `instructions` method
 public function instructions()
 {
-    return "Define your agent's instructions here.";
+return "Define your agent's instructions here.";
 }
-```
+
+````
 
 ```php Prompt Method
 // Customize how messages are processed before sending to the AI
@@ -92,7 +93,7 @@ public function prompt(string $message)
 {
     return $message;
 }
-```
+````
 
 ```php Model Method
 // Decide which model to use dynamically with custom logic
@@ -104,23 +105,25 @@ public function model()
 ```
 
 ```php API Key / URL
-// Dynamically set the API URL for the driver
+// Return API URL to Dynamically set it for the driver
 public function getApiUrl()
 {
     return $this->apiUrl;
 }
 
-// Dynamically set the API Key for the driver
+// return API Key to Dynamically set for the driver
 public function getApiKey()
 {
     return $this->apiKey;
 }
 ```
+
 </CodeGroup>
 
 ### Properties
 
 #### Instructions
+
 ```php
 /** @var string - Define the agent's behavior and role */
 protected $instructions;
@@ -134,6 +137,7 @@ protected $instructions = "You are a helpful assistant specialized in weather fo
 ```
 
 #### History
+
 ```php
 /** @var string - Choose from built-in chat history types */
 protected $history;
@@ -150,6 +154,7 @@ protected $history = \LarAgent\History\CacheChatHistory::class;
 ```
 
 #### Driver
+
 ```php
 /** @var string - Specify which LLM driver to use */
 protected $driver;
@@ -163,6 +168,7 @@ protected $driver = \LarAgent\Drivers\OpenAi\OpenAiDriver::class;
 ```
 
 #### Provider
+
 ```php
 /** @var string - Select the AI provider configuration */
 protected $provider = 'default';
@@ -176,6 +182,7 @@ protected $provider = 'openai-gpt4';
 ```
 
 #### Model
+
 ```php
 /** @var string - Choose which language model to use */
 protected $model = 'gpt-4o-mini';
@@ -191,14 +198,18 @@ protected $model = 'gpt-4o';
 #### Other properties
 
 <Warning>
-    All config properties have relevant setter (chainable methods) you can use to set them at runtime. For example, `$maxCompletionTokens` -> `maxCompletionTokens(int $tokens)`, `$topP` -> `topP(float $topP)` and etc.
+  All config properties have relevant setter (chainable methods) you can use to
+  set them at runtime. For example, `$maxCompletionTokens` ->
+  `maxCompletionTokens(int $tokens)`, `$topP` -> `topP(float $topP)` and etc.
 </Warning>
 
 <Warning>
-    All config properties can be defined by config file in provider settings. For example, `$maxCompletionTokens` -> `max_completion_tokens => 2000` and etc.
+  All config properties can be defined by config file in provider settings. For
+  example, `$maxCompletionTokens` -> `max_completion_tokens => 2000` and etc.
 </Warning>
 
 ##### **Tokens**
+
 ```php
 /** @var int - Set the maximum number of tokens in the completion */
 protected $maxCompletionTokens;
@@ -212,6 +223,7 @@ protected $maxCompletionTokens = 2000;
 ```
 
 ##### **Temperature**
+
 ```php
 /** @var float - Control response creativity */
 protected $temperature;
@@ -225,12 +237,14 @@ protected $temperature = 0.7; // Balanced
 ```
 
 ##### **Message**
+
 ```php
 /** @var string|null - Current message being processed */
 protected $message;
 ```
 
 ##### **n**
+
 ```php
 /** @var int|null */
 protected $n;
@@ -241,6 +255,7 @@ protected $n;
 In case of $n > 1, the agent will return an array of responses.
 
 ##### **top_p**
+
 ```php
 /** @var float|null */
 protected $topP;
@@ -250,7 +265,8 @@ protected $topP;
 
 We generally recommend altering `$topP` or `$temperature` but not both.
 
-##### **frequency_penalty** 
+##### **frequency_penalty**
+
 ```php
 /** @var float|null */
 protected $frequencyPenalty;
@@ -259,6 +275,7 @@ protected $frequencyPenalty;
 > Number between -2.0 and 2.0. Positive values penalize new tokens based on their existing frequency in the text so far, decreasing the model's likelihood to repeat the same line verbatim.
 
 ##### **presence_penalty**
+
 ```php
 /** @var float|null */
 protected $presencePenalty;
@@ -302,6 +319,7 @@ echo WeatherAgent::for('user_1_chat')
     ->withTool(new WeatherTool())
     ->respond();
 ```
+
 </CodeGroup>
 
 #### Ready made user message
@@ -317,11 +335,14 @@ $response = WeatherAgent::for('test_chat')->message($userMessage)->respond();
 ```
 
 <Warning>
-  If you use UserMessage instance instead string, it will bypass the `prompt` method.
+  If you use UserMessage instance instead string, it will bypass the `prompt`
+  method.
 </Warning>
 
 #### Return message
+
 By default, `respond` method returns:
+
 - `string` with regular request
 - `array` of `string` if `$n` is greater than 1.
 - `array` Associative array of defined structured output schema.
@@ -333,9 +354,11 @@ which will enforce `respond` method to return MessageInterface instance.
 // Returns MessageInterface -> AssistantMessage instance
 $response = WeatherAgent::for('test_chat')->returnMessage()->respond();
 ```
+
 <Warning>
-  If `returnMessage` is true and structured output is defined, `beforeStructuredOutput` hook will not happen,
-  because structured output is not processed to array.
+  If `returnMessage` is true and structured output is defined,
+  `beforeStructuredOutput` hook will not happen, because structured output is
+  not processed to array.
 </Warning>
 
 ### Image input
@@ -362,7 +385,8 @@ $response = ImageAgent::for('test')->withImages($imageUrls)->respond("Analyze im
 ```
 
 <Note>
-  Base64 image input Contributed by [havspect](https://github.com/havspect) in [issue #74](https://github.com/MaestroError/LarAgent/issues/74).
+  Base64 image input Contributed by [havspect](https://github.com/havspect) in
+  [issue #74](https://github.com/MaestroError/LarAgent/issues/74).
 </Note>
 
 ### Audio input
@@ -479,14 +503,15 @@ Here are some chainable methods to modify the agent's behavior on the fly:
   Adds a custom message to the chat history. MessageInterface: Easily created with Message class: `Message::system('Your message here')`
   Use with caution, as it is added directly to the chat history and keep in mind that history needs to keep certain structure defined by openai.
 
-  ```php
-  // Example
-  use LarAgent\Message;
-  
-  $agent->addMessage(Message::system('Remember to be concise'))
-        ->message('Explain quantum computing')
-        ->respond();
-  ```
+```php
+// Example
+use LarAgent\Message;
+
+$agent->addMessage(Message::system('Remember to be concise'))
+      ->message('Explain quantum computing')
+      ->respond();
+```
+
   </Accordion>
   
   <Accordion title="clear() - Clear history">
@@ -713,24 +738,15 @@ You can access the agent's properties using these methods on an instance of the 
   }
   ```
   </Accordion>
-  
 
-  <Accordion title="getModalities() - Get modalities">
-  ```php
-  /**
-   * Get all modalities associated with this agent class
-   */
-  public function getModalities(): array;
-  ```
-  
-  Returns all modalities associated with this agent class.
-  
-  ```php
-  // Example
-  $modalities = $agent->getModalities();
-  // Returns: ["text", "image", "audio"]
-  ```
-  </Accordion>
+
+{" "}
+<Accordion title="getModalities() - Get modalities">
+  ```php /** * Get all modalities associated with this agent class */ public
+  function getModalities(): array; ``` Returns all modalities associated with
+  this agent class. ```php // Example $modalities = $agent->getModalities(); //
+  Returns: ["text", "image", "audio"] ```
+</Accordion>
 
   <Accordion title="getAudio() - Get audio">
   ```php
@@ -756,7 +772,6 @@ You can access the agent's properties using these methods on an instance of the 
   </Accordion>
 </AccordionGroup>
 
-
 ## Example Configuration
 
 ```php
@@ -765,12 +780,12 @@ class WeatherAgent extends Agent
     protected $model = 'gpt-4o';
     protected $history = 'session';
     protected $temperature = 0.7;
-    
+
     public function instructions()
     {
         return "You are a weather expert assistant. Provide accurate weather information.";
     }
-    
+
     public function prompt(string $message)
     {
         return "Weather query: " . $message;
