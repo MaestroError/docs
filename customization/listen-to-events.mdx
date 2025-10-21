@@ -1,0 +1,605 @@
+---
+title: "Listen to Events"
+description: "Learn how to listen to and handle LarAgent events in your application"
+---
+
+## Quickstart
+
+Start with creation of the listener:
+
+```bash
+php artisan make:listener AgentListener
+```
+
+<Note>
+  Name `AgentListener` is used as example, you can name it as you wish
+</Note>
+
+Import LarAgent event of your choice (You can find a list below) and implement handle method:
+
+```php {5,20}
+namespace App\Listeners;
+
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\InteractsWithQueue;
+use LarAgent\Events\AgentInitialized;
+
+class AgentListener
+{
+    /**
+     * Create the event listener.
+     */
+    public function __construct()
+    {
+        //
+    }
+
+    /**
+     * Handle the event.
+     */
+    public function handle(AgentInitialized $event): void
+    {
+        // Just DD the event info as example
+        dd('Agent has been initialized:', $event);
+    }
+}
+```
+
+Open the `app\Providers\AppServiceProvider.php` and register event with listener:
+
+```php {4.6-7, 24-27}
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Event;
+
+use LarAgent\Events\AgentInitialized;
+use App\Listeners\AgentListener;
+
+class AppServiceProvider extends ServiceProvider
+{
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        //
+    }
+
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        Event::listen(
+            AgentInitialized::class,
+            AgentListener::class
+        );
+
+        // MCP Test per-second rate limiter
+        \Illuminate\Support\Facades\RateLimiter::for('mcp-test', function ($request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perSecond(2)->by($request->user()?->id ?: $request->ip());
+        });
+    }
+}
+```
+
+You are good to go! Anytime, when agent will be initialized, the `handle` method will be executed
+
+## Available Events
+
+### AgentDTO Structure
+
+<Info>
+  Each event that includes `agentDto` uses the following Data Transfer Object
+  structure:
+</Info>
+
+```php
+<?php
+
+namespace LarAgent\Core\DTO;
+
+class AgentDTO
+{
+    public function __construct(
+        public readonly string $provider,
+        public readonly string $providerName,
+        public readonly ?string $message,
+        public readonly array $tools = [],
+        public readonly ?string $instructions = null,
+        public readonly ?array $responseSchema = [],
+        public readonly array $configuration = []
+    ) {}
+
+    public function toArray(): array
+    {
+        return [
+            'provider' => $this->provider,
+            'providerName' => $this->providerName,
+            'message' => $this->message,
+            'tools' => $this->tools,
+            'instructions' => $this->instructions,
+            'responseSchema' => $this->responseSchema,
+            'configuration' => $this->configuration,
+        ];
+    }
+}
+```
+
+---
+
+### Lifecycle Events
+
+These events track the main lifecycle stages of an agent conversation.
+
+#### AgentInitialized
+
+Dispatched when the agent completes its initialization process and is ready to handle conversations.
+
+**Namespace:**
+
+```php
+LarAgent\Events\AgentInitialized
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Complete agent configuration including provider, tools, instructions, and
+  response schema.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(AgentInitialized $event): void
+{
+    $provider = $event->agentDto->provider;
+    $tools = $event->agentDto->tools;
+    // Your logic here
+}
+```
+
+#### ConversationStarted
+
+Dispatched when the `respond()` method begins execution, marking the start of a new conversation turn.
+
+**Namespace:**
+
+```php
+LarAgent\Events\ConversationStarted
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Current agent configuration at the start of the conversation.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(ConversationStarted $event): void
+{
+    $message = $event->agentDto->message;
+    // Log conversation start, initialize metrics, etc.
+}
+```
+
+#### ConversationEnded
+
+Dispatched when the `respond()` method completes execution, indicating the end of a conversation turn.
+
+**Namespace:**
+
+```php
+LarAgent\Events\ConversationEnded
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Final agent configuration at the end of the conversation.
+</ParamField>
+
+<ParamField body="message" type="MessageInterface|array|null" required>
+  The final response message or null if no response was generated.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(ConversationEnded $event): void
+{
+    $response = $event->message;
+    // Log conversation end, calculate metrics, cleanup, etc.
+}
+```
+
+#### ToolChanged
+
+Dispatched when tools are dynamically added to or removed from the agent during runtime.
+
+**Namespace:**
+
+```php
+LarAgent\Events\ToolChanged
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Current agent configuration.
+</ParamField>
+
+<ParamField body="tool" type="ToolInterface" required>
+  The tool instance that was added or removed.
+</ParamField>
+
+<ParamField body="added" type="boolean" required>
+  `true` if the tool was added, `false` if it was removed.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(ToolChanged $event): void
+{
+    $toolName = $event->tool->getName();
+    $action = $event->added ? 'added' : 'removed';
+    // Log tool changes, update UI, etc.
+}
+```
+
+#### AgentCleared
+
+Dispatched when the agent's state is cleared, typically resetting conversation history and context.
+
+**Namespace:**
+
+```php
+LarAgent\Events\AgentCleared
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Agent configuration at the time of clearing.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(AgentCleared $event): void
+{
+    // Clear related caches, reset session data, etc.
+}
+```
+
+#### EngineError
+
+Dispatched when an error occurs in the LLM engine during processing.
+
+**Namespace:**
+
+```php
+LarAgent\Events\EngineError
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Agent configuration when the error occurred.
+</ParamField>
+
+<ParamField body="exception" type="Throwable" required>
+  The exception that was thrown by the LLM engine.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(EngineError $event): void
+{
+    $error = $event->exception->getMessage();
+    $provider = $event->agentDto->provider;
+    // Log error, send alerts, implement fallback logic, etc.
+}
+```
+
+---
+
+### Hook Events (Before/After)
+
+These events provide hooks before and after critical operations, allowing you to modify behavior or track execution flow.
+
+#### BeforeReinjectingInstructions
+
+Dispatched before instructions are reinjected into the conversation history.
+
+**Namespace:**
+
+```php
+LarAgent\Events\BeforeReinjectingInstructions
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Current agent configuration.
+</ParamField>
+
+<ParamField body="chatHistory" type="ChatHistoryInterface" required>
+  The chat history interface before instruction reinjection.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(BeforeReinjectingInstructions $event): void
+{
+    $history = $event->chatHistory;
+    // Modify history, add context, etc.
+}
+```
+
+#### BeforeSend
+
+Dispatched just before sending a message to the LLM provider.
+
+**Namespace:**
+
+```php
+LarAgent\Events\BeforeSend
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Current agent configuration.
+</ParamField>
+
+<ParamField body="history" type="ChatHistoryInterface" required>
+  The complete conversation history being sent.
+</ParamField>
+
+<ParamField body="message" type="MessageInterface|null" required>
+  The message about to be sent, or null if sending history only.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(BeforeSend $event): void
+{
+    $messageContent = $event->message?->getContent();
+    // Log outgoing messages, modify content, add tracking, etc.
+}
+```
+
+#### AfterSend
+
+Dispatched immediately after successfully sending a message to the LLM provider.
+
+**Namespace:**
+
+```php
+LarAgent\Events\AfterSend
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Current agent configuration.
+</ParamField>
+
+<ParamField body="history" type="ChatHistoryInterface" required>
+  The conversation history that was sent.
+</ParamField>
+
+<ParamField body="message" type="MessageInterface" required>
+  The message that was successfully sent.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(AfterSend $event): void
+{
+    $sentMessage = $event->message->getContent();
+    // Track message delivery, update metrics, etc.
+}
+```
+
+#### BeforeSaveHistory
+
+Dispatched before persisting the conversation history to storage.
+
+**Namespace:**
+
+```php
+LarAgent\Events\BeforeSaveHistory
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Current agent configuration.
+</ParamField>
+
+<ParamField body="history" type="ChatHistoryInterface" required>
+  The conversation history about to be saved.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(BeforeSaveHistory $event): void
+{
+    $history = $event->history;
+    // Sanitize data, add metadata, validate before save, etc.
+}
+```
+
+#### BeforeResponse
+
+Dispatched before processing and returning the LLM's response to the caller.
+
+**Namespace:**
+
+```php
+LarAgent\Events\BeforeResponse
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Current agent configuration.
+</ParamField>
+
+<ParamField body="history" type="ChatHistoryInterface" required>
+  Current conversation history including the new response.
+</ParamField>
+
+<ParamField body="message" type="MessageInterface|null" required>
+  The response message from the LLM, or null if no response.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(BeforeResponse $event): void
+{
+    $response = $event->message?->getContent();
+    // Filter content, add formatting, validate response, etc.
+}
+```
+
+#### AfterResponse
+
+Dispatched after the response has been fully processed and is ready to be returned.
+
+**Namespace:**
+
+```php
+LarAgent\Events\AfterResponse
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Current agent configuration.
+</ParamField>
+
+<ParamField body="message" type="MessageInterface" required>
+  The final processed response message.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(AfterResponse $event): void
+{
+    $finalResponse = $event->message->getContent();
+    // Log final response, update analytics, cache result, etc.
+}
+```
+
+#### BeforeToolExecution
+
+Dispatched just before a tool is executed by the agent.
+
+**Namespace:**
+
+```php
+LarAgent\Events\BeforeToolExecution
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Current agent configuration.
+</ParamField>
+
+<ParamField body="tool" type="ToolInterface" required>
+  The tool instance about to be executed.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(BeforeToolExecution $event): void
+{
+    $toolName = $event->tool->getName();
+    // Log tool execution start, validate permissions, start timer, etc.
+}
+```
+
+#### AfterToolExecution
+
+Dispatched immediately after a tool completes execution.
+
+**Namespace:**
+
+```php
+LarAgent\Events\AfterToolExecution
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Current agent configuration.
+</ParamField>
+
+<ParamField body="tool" type="ToolInterface" required>
+  The tool instance that was executed.
+</ParamField>
+
+<ParamField body="result" type="mixed" required>
+  The result returned by the tool execution.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(AfterToolExecution $event): void
+{
+    $toolName = $event->tool->getName();
+    $result = $event->result;
+    // Log results, track performance, cache output, etc.
+}
+```
+
+#### BeforeStructuredOutput
+
+Dispatched before processing structured output from the LLM response.
+
+**Namespace:**
+
+```php
+LarAgent\Events\BeforeStructuredOutput
+```
+
+**Available Data:**
+
+<ParamField body="agentDto" type="AgentDTO" required>
+  Current agent configuration including the response schema.
+</ParamField>
+
+<ParamField body="response" type="array" required>
+  The raw structured response array before processing.
+</ParamField>
+
+**Example:**
+
+```php
+public function handle(BeforeStructuredOutput $event): void
+{
+    $schema = $event->agentDto->responseSchema;
+    $response = $event->response;
+    // Validate structure, transform data, add defaults, etc.
+}
+```
+
+---
