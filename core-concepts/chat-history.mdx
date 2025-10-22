@@ -106,8 +106,9 @@ protected $includeModelInChatSessionId;
 By default it is set to `false` (disabled). If you want to include model name in chat session id, set it to `true`.
 
 <Warning>
-  Before v0.5 model name was used in chat history key by default: `AgentName_ModelName_UserId`. 
-  To keep old code compatible set it to `true` in your agent classes.
+  Before v0.5 model name was used in chat history key by default:
+  `AgentName_ModelName_UserId`. To keep old code compatible set it to `true` in
+  your agent classes.
 </Warning>
 
 Agent automatically appends the **Agent class basename** and **model name** used on each message's metadata to keep track of the agent and model used.
@@ -179,15 +180,52 @@ $response = MyAgent::forUser(auth()->user())->respond('Can you explain more abou
 You can also create named chat histories for specific contexts or topics:
 
 ```php
+
 // Start a conversation about weather
-$response = MyAgent::for('weather_chat')->respond('What's the weather like today?');
+$response = MyAgent::for('weather_chat')->respond("What's the weather like today?");
 
 // Start a separate conversation about recipes
 $response = MyAgent::for('recipe_chat')->respond('How do I make pasta carbonara?');
 
 // Continue the weather conversation
 $response = MyAgent::for('weather_chat')->respond('Will it rain tomorrow?');
+
 ```
+
+### Random Chat Histories
+
+If you don't specify chat history name with `for` or `forUser` methods, there will be used a random chat key:
+
+```php Without history name
+// Get instance with make and keep it chainable
+$response = MyAgent::make()->respond("How do I make pasta carbonara?");
+
+// Directly ask to the agent
+$response = MyAgent::ask('Will it rain tomorrow?');
+
+```
+
+By default, there is set 10 random characters with `Str` facade, but you can customize the automatic key generation by overriding the `generateRandomKey` static method in your Agent class:
+
+```php
+// Auto chat history with user type and id
+protected static function generateRandomKey(): string {
+  $user = auth()->user();
+  return $user->type . "-" . $user->id;
+}
+
+// Auto chat history with agent class name and topic
+protected static function generateRandomKey(): string {
+  return self::class . "-" . Session::get('latest_topic');;
+}
+```
+
+<Note>
+  You can use `generateRandomKey` method to set non-random, but dynamic or
+  semi-random keys. The point is that, this method is used to automatically set
+  chat name when there is no `for` or `forUser` methods specifing the custom
+  history name.
+</Note>
 
 ## Accessing and Managing Chat History
 
@@ -293,7 +331,7 @@ You can store usage data (if available) automatically in the chat history by set
 protected $storeMeta = true;
 ```
 
-This will store usage data (if available) in the chat history as metadata of message. 
+This will store usage data (if available) in the chat history as metadata of message.
 Each message supports `toArrayWithMeta()` method to get array with metadata:
 
 ```php
@@ -313,15 +351,18 @@ $message = $message->toArrayWithMeta();
 ```
 
 <Warning>
-  Before v0.5 keys was stored as `promptTokens` (camelCase) instead of `prompt_tokens` (snake_case), so make sure to update your code if you were using it.
+  Before v0.5 keys was stored as `promptTokens` (camelCase) instead of
+  `prompt_tokens` (snake_case), so make sure to update your code if you were
+  using it.
 </Warning>
 
 Alternatively, you can store usage data manually using `afterResponse` hooks in your agent class:
+
 ```php
 protected function afterResponse($message)
 {
     $messageArray = $message->toArrayWithMeta();
-    
+
     // Store usage data
     Usage::create([
         'agent_name' => class_basename($this),

@@ -157,17 +157,45 @@ This will create a new agent class in the `App\AiAgents` directory with all the 
 
 ### Simple Response
 
-```php
+<CodeGroup>
+
+```php with chat name
 use App\AiAgents\WeatherAgent;
 
 // Create an instance for a specific user or chat session
 $agent = WeatherAgent::for('user-123');
 
 // Get a response
-$response = $agent->respond('What\'s the weather like in Boston?');
+$response = $agent->respond("What's the weather like in Boston?");
 
 echo $response; // "The weather in Boston is currently..."
+
 ```
+
+```php with random chat
+use App\AiAgents\WeatherAgent;
+
+// Create instance with random chat history name
+$response = WeatherAgent::make()
+    ->withTemperature(0.7)
+    ->message("What's the weather like in Boston?")
+    ->respond();
+
+echo $response; // "The weather in Boston is currently..."
+
+```
+
+```php shorthand
+use App\AiAgents\WeatherAgent;
+
+// Create instance with random chat history name
+$response = WeatherAgent::ask("What's the weather like in Boston?");
+
+echo $response; // "The weather in Boston is currently..."
+
+```
+
+</CodeGroup>
 
 ### Adding Tools
 
@@ -181,14 +209,14 @@ use LarAgent\Attributes\Tool;
 
 class WeatherAgent extends Agent
 {
-    // ... other properties
+  // ... other properties
 
-    #[Tool('Get the current weather in a given location')]
-    public function getCurrentWeather($location, $unit = 'celsius')
-    {
-        // Call a weather API or service
-        return "The weather in {$location} is 22 degrees {$unit}.";
-    }
+  #[Tool('Get the current weather in a given location')]
+  public function getCurrentWeather($location, $unit = 'celsius')
+  {
+      // Call a weather API or service
+      return "The weather in {$location} is 22 degrees {$unit}.";
+  }
 }
 ```
 

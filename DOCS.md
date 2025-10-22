@@ -11,7 +11,7 @@ Jump to [Table of Contents](#table-of-contents)
 
 _Need to use LarAgent outside of Laravel? Check out this [Docs](https://github.com/MaestroError/LarAgent/blob/main/LARAGENT.md)._
 
-__If you prefer article to get started, check it out [Laravel AI Agent Development Made Easy](https://medium.com/towardsdev/laravel-ai-agent-development-made-easy-ac7ddd17a7d0)__
+**If you prefer article to get started, check it out [Laravel AI Agent Development Made Easy](https://medium.com/towardsdev/laravel-ai-agent-development-made-easy-ac7ddd17a7d0)**
 
 ## Introduction
 
@@ -64,14 +64,15 @@ protected $history = \LarAgent\History\CacheChatHistory::class;
 ```
 
 Or add `temperature`:
- 
+
 ```php
 // ...
 protected $temperature = 0.5;
 // ...
 ```
+
 Even disable parallel tool calls:
- 
+
 ```php
 // ...
 protected $parallelToolCalls = false;
@@ -108,7 +109,6 @@ YourAgentName::for("custom_history_name")->respond($message);
 
 Let's find out more with [documentation](#table-of-contents) below 👍
 
-
 ## Features
 
 - Eloquent-like syntax for creating and managing AI agents
@@ -118,13 +118,13 @@ Let's find out more with [documentation](#table-of-contents) below 👍
 - Image input support
 - Easily extendable, including chat histories and LLM drivers
 - Multiple built-in chat history storage options (in-memory, cache, json, etc.)
-    - Per-user chat history management
-    - Custom chat history naming support
+  - Per-user chat history management
+  - Custom chat history naming support
 - Custom tool creation with attribute-based configuration
-    - Tools via classes
-    - Tools via methods of AI agent class (Auto)
-    - `Tool` facade for shortened tool creation
-    - Parallel tool execution capability (can be disabled)
+  - Tools via classes
+  - Tools via methods of AI agent class (Auto)
+  - `Tool` facade for shortened tool creation
+  - Parallel tool execution capability (can be disabled)
 - Extensive Event system for agent interactions (Nearly everything is hookable)
 - Multiple provider support (Can be set per model)
 - Support for both Laravel and standalone usage
@@ -134,6 +134,7 @@ Let's find out more with [documentation](#table-of-contents) below 👍
 Here's what's coming next to make LarAgent even more powerful:
 
 ### Developer Experience 🛠️
+
 - **Artisan Commands for Rapid Development**
   - `agent:chat:clear AgentName` - Clear all chat histories for a specific agent while preserving keys
   - `agent:chat:remove AgentName` - Completely remove all chat histories and keys for a specific agent
@@ -141,15 +142,16 @@ Here's what's coming next to make LarAgent even more powerful:
   - `make:agent:chat-history` - Scaffold custom chat history implementations
   - `make:llm-driver` - Create custom LLM driver integrations
 - **Native Laravel events support** - Support for Laravel events
-- **Debug mode** -  Should log all processes happening under the hood
+- **Debug mode** - Should log all processes happening under the hood
 
 ### Enhanced AI Capabilities 🧠
+
 - **Prism Package Integration** - Additional LLM providers support
 - **Gemini Integration** - Additional LLM provider
 - **Anthropic Integration** - Additional LLM provider
 - **Usage abstraction** - Abstraction for tokens usage
 - **Streaming Support** - Out-of-the-box support for streaming responses
-- **RAG & Knowledge Base** 
+- **RAG & Knowledge Base**
   - Built-in vector storage providers
   - Seamless document embeddings integration
   - Smart context management
@@ -157,11 +159,12 @@ Here's what's coming next to make LarAgent even more powerful:
 - **Structured Output at runtime** - Allow defining the response JSON Schema at runtime.
 - **Transfer tool** - One of the methods of agents chaining
 
-
 ### Security & Storage 🔒
+
 - **Enhanced Chat History Security** - Optional encryption for sensitive conversations
 
 ### Advanced Integrations 🔌
+
 - **Provider Fallback System** - Automatic fallback to alternative providers
 - **Laravel Actions Integration** - Use your existing Actions as agent tools
 - **Voice Chat Support** - Out of the box support for voice interactions with your agents
@@ -209,8 +212,8 @@ Stay tuned! We're constantly working on making LarAgent the most versatile AI ag
 
 ### Requirements
 
-*   Laravel 10.x or higher
-*   PHP 8.3 or higher
+- Laravel 10.x or higher
+- PHP 8.3 or higher
 
 ### Installation
 
@@ -371,18 +374,19 @@ public function model()
 ```
 
 Example:
+
 ```php
 class WeatherAgent extends Agent
 {
     protected $model = 'gpt-4';
     protected $history = 'cache';
     protected $temperature = 0.7;
-    
+
     public function instructions()
     {
         return "You are a weather expert assistant. Provide accurate weather information.";
     }
-    
+
     public function prompt(string $message)
     {
         return "Weather query: " . $message;
@@ -395,6 +399,7 @@ class WeatherAgent extends Agent
 There are two ways to interact with your agent: direct response or chainable methods.
 
 ##### Direct Response
+
 The simplest way is to use the `for()` method to specify a chat history name and get an immediate response:
 
 ```php
@@ -402,7 +407,15 @@ The simplest way is to use the `for()` method to specify a chat history name and
 echo WeatherAgent::for('test_chat')->respond('What is the weather like?');
 ```
 
+If you don't need to save / retrive chat history, because you are using "in_memory" type or for any other reason, you can skip 'for' method:
+
+```php
+// Using a random chat history name
+echo WeatherAgent::ask('What is the weather like?');
+```
+
 ##### Chainable Methods
+
 For more control over the interaction, you can use the chainable syntax:
 
 ```php
@@ -419,6 +432,12 @@ The `for()` and `forUser()` method allows you to maintain separate conversation 
 echo WeatherAgent::for('user_1_chat')->respond('What is the weather like?');
 echo WeatherAgent::for('user_2_chat')->respond('How about tomorrow?');
 echo WeatherAgent::forUser(auth()->user())->respond('How about tomorrow?');
+```
+
+If you don't need to maintain conversation histories, you can just replace it with `make` method:
+
+```php
+echo WeatherAgent::make()->respond('What is the weather like?');
 ```
 
 Here are some chainable methods to modify the agents behavior on the fly:
@@ -448,7 +467,7 @@ public function withModel(string $model);
 public function addMessage(MessageInterface $message);
 
 /**
- * Clear the chat history 
+ * Clear the chat history
  * This removes all messages from the chat history
  */
 public function clear();
@@ -473,7 +492,6 @@ public function removeTool(string $name);
  */
 public function temperature(float $temp);
 ```
-
 
 ##### Agent accessors
 
@@ -529,8 +547,6 @@ public function getWeather(string $city)
 }
 ```
 
-
-
 Tools in LarAgent can be configured using these properties:
 
 ```php
@@ -546,12 +562,12 @@ _Note: You can set parallelToolCalls to null in case you want to remove from req
 There are three ways to create and register tools in your agent:
 
 1. **Using the registerTools Method**
-This method allows you to programmatically create and register tools using the `LarAgent\Tool` class:
+   This method allows you to programmatically create and register tools using the `LarAgent\Tool` class:
 
 ```php
 use LarAgent\Tool;
 // ...
-public function registerTools() 
+public function registerTools()
 {
     $user = auth()->user();
     return [
@@ -567,7 +583,7 @@ public function registerTools()
 ```
 
 2. **Using the #[Tool] Attribute**
-The `#[Tool]` attribute provides a simple way to create tools from class methods:
+   The `#[Tool]` attribute provides a simple way to create tools from class methods:
 
 ```php
 use LarAgent\Attributes\Tool;
@@ -578,12 +594,14 @@ public function weatherTool($location, $unit = 'celsius')
     return 'The weather in '.$location.' is '.'20'.' degrees '.$unit;
 }
 ```
+
 Agent will automatically register tool with given description as `Tool` attribute's first argument and other method info,
 such as method name, required and optional parameters.
 
 `Tool` attribute also accepts a second argument, which is an array mapping parameter names to their descriptions for more precise control. Also, it can be used with Static methods and parameters with Enum as type, where you can specify the values for the Agent to choose from.
 
 **Enum**
+
 ```php
 namespace App\Enums;
 
@@ -595,6 +613,7 @@ enum Unit: string
 ```
 
 **Agent class**
+
 ```php
 use LarAgent\Attributes\Tool;
 use App\Enums\Unit;
@@ -614,7 +633,7 @@ So the tool registered for your LLM will define `$unit` as enum of "celsius" and
 _Recommended to use `#[Tool]` attribute with static methods if there is no need for agent instance ($this)_
 
 3. **Using Tool Classes**
-You can create separate tool classes and add them to the `$tools` property:
+   You can create separate tool classes and add them to the `$tools` property:
 
 ```php
 protected $tools = [
@@ -628,6 +647,7 @@ It's recommended to use tool classes with any complex workflows as they provide:
 _Tool creation command coming soon_
 
 Tool class example:
+
 ```php
 class WeatherTool extends LarAgent\Tool
 {
@@ -666,6 +686,7 @@ Chat history is used to store the conversation history between the user and the 
 #### Built-in Chat Histories
 
 In Laravel:
+
 ```php
 protected $history = 'in_memory';  // Stores chat history temporarily in memory (lost after request)
 protected $history = 'session';    // Uses Laravel's session storage
@@ -675,6 +696,7 @@ protected $history = 'json';       // Stores in JSON files (storage/app/chat-his
 ```
 
 Outside Laravel:
+
 ```php
 LarAgent\History\InMemoryChatHistory::class  // Stores chat history in memory
 LarAgent\History\JsonChatHistory::class      // Stores in JSON files
@@ -685,39 +707,48 @@ LarAgent\History\JsonChatHistory::class      // Stores in JSON files
 Chat histories can be configured using these properties in your Agent class.
 
 **reinjectInstructionsPer**
+
 ```php
 /** @var int - Number of messages after which to reinject the agent's instructions */
 protected $reinjectInstructionsPer;
 ```
+
 Instructions are always injected at the beginning of the chat history, `$reinjectInstructionsPer` defined when to reinject the instructions. By default it is set to `0` (disabled).
 
 **contextWindowSize**
+
 ```php
 /** @var int - Maximum number of tokens to keep in context window */
 protected $contextWindowSize;
 ```
+
 After the context window is exceeded, the oldest messages are removed until the context window is satisfied or the limit is reached. You can implement custom logic for the context window management using events and chat history instance inside your agent.
 
 **storeMeta**
+
 ```php
 /** @var bool - Whether to store additional metadata with messages */
 protected $storeMeta;
 ```
+
 Some LLM drivers such as OpenAI provide additional data with the response, such as token usage, completion time, etc. By default it is set to `false` (disabled).
 
-
 **saveChatKeys**
+
 ```php
 /** @var bool - Store chat keys in memory */
 protected $saveChatKeys;
 ```
+
 By default it is true, since it is required for [chat history bunch clearing](#clear-chat-history) command to work.
 
 **developerRoleForInstructions**
+
 ```php
 /** @var bool - Use developer role for instructions */
 protected $developerRoleForInstructions;
 ```
+
 By default it is disabled, but you can turn it on by setting it to true in your agent.
 
 #### Creating Custom Chat History
@@ -729,10 +760,13 @@ Check example implementations in [src/History](https://github.com/MaestroError/L
 There are two ways to register your custom chat history into an agent. If you use standard constructor only with `$name` parameter, you can define it by class in `$history` property or provider configuration:
 
 **Agent Class**
+
 ```php
 protected $history = \App\ChatHistories\CustomChatHistory::class;
 ```
+
 **Provider Configuration (config/laragent.php)**
+
 ```php
 'chat_history' => \App\ChatHistories\CustomChatHistory::class,
 ```
@@ -763,6 +797,7 @@ $agent->clear();
 // Get last message
 $lastMessage = $agent->lastMessage();
 ```
+
 You can access chat history instance with `chatHistory()` method from the agent instance:
 
 ```php
@@ -771,6 +806,7 @@ $history = $agent->chatHistory();
 ```
 
 Here are several methods you can use with Chat History:
+
 ```php
 public function addMessage(MessageInterface $message): void;
 public function getMessages(): array;
@@ -785,6 +821,7 @@ public function exceedsContextWindow(int $tokens): bool;
 ```
 
 The chat history is created with the following configuration:
+
 ```php
 $historyInstance = new $historyClass($sessionId, [
     'context_window' => $this->contextWindowSize,  // Control token limit
@@ -861,12 +898,12 @@ public function structuredOutput()
 _Pay attention to "required", "additionalProperties", and "strict" properties - it is recommended by OpenAI to set them when defining the schema to get the exact structure you need_
 
 The schema follows the JSON Schema specification and supports all its features, including:
+
 - Basic types (string, number, boolean, array, object)
 - Required properties
 - Nested objects and arrays
 - Property descriptions
 - Enums and patterns
-
 
 #### Using Structured Output
 
@@ -895,7 +932,6 @@ if ($agent->structuredOutput()) {
     // Handle structured response
 }
 ```
-
 
 ### Streaming
 
@@ -960,7 +996,7 @@ public function chat(Request $request)
 {
     $message = $request->input('message');
     $agent = WeatherAgent::for(auth()->id());
-    
+
     // Return a streamable response
     return $agent->streamResponse($message, 'plain');
 }
@@ -979,25 +1015,25 @@ return $agent->streamResponse($message, 'plain');
 ```
 
 Frontend implementation (JavaScript):
+
 ```javascript
-fetch('/chat?message=What is the weather in Boston?')
-  .then(response => {
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    
-    function read() {
-      return reader.read().then(({ done, value }) => {
-        if (done) return;
-        
-        const text = decoder.decode(value);
-        document.getElementById('output').textContent += text;
-        
-        return read();
-      });
-    }
-    
-    return read();
-  });
+fetch("/chat?message=What is the weather in Boston?").then((response) => {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  function read() {
+    return reader.read().then(({ done, value }) => {
+      if (done) return;
+
+      const text = decoder.decode(value);
+      document.getElementById("output").textContent += text;
+
+      return read();
+    });
+  }
+
+  return read();
+});
 ```
 
 ##### JSON Streaming
@@ -1007,43 +1043,44 @@ return $agent->streamResponse($message, 'json');
 ```
 
 Frontend implementation (JavaScript):
+
 ```javascript
-fetch('/chat?message=What is the weather in Boston?')
-  .then(response => {
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    
-    function read() {
-      return reader.read().then(({ done, value }) => {
-        if (done) return;
-        
-        buffer += decoder.decode(value);
-        const lines = buffer.split('\n');
-        buffer = lines.pop(); // Keep the last incomplete line in the buffer
-        
-        lines.forEach(line => {
-          if (line.trim()) {
-            const data = JSON.parse(line);
-            if (data.type === 'structured') {
-              // Handle structured output
-              handleStructuredOutput(data.content);
-            } else {
-              // Handle regular content
-              document.getElementById('output').textContent += data.delta;
-            }
+fetch("/chat?message=What is the weather in Boston?").then((response) => {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  function read() {
+    return reader.read().then(({ done, value }) => {
+      if (done) return;
+
+      buffer += decoder.decode(value);
+      const lines = buffer.split("\n");
+      buffer = lines.pop(); // Keep the last incomplete line in the buffer
+
+      lines.forEach((line) => {
+        if (line.trim()) {
+          const data = JSON.parse(line);
+          if (data.type === "structured") {
+            // Handle structured output
+            handleStructuredOutput(data.content);
+          } else {
+            // Handle regular content
+            document.getElementById("output").textContent += data.delta;
           }
-        });
-        
-        return read();
+        }
       });
-    }
-    
-    return read();
-  });
+
+      return read();
+    });
+  }
+
+  return read();
+});
 ```
 
 Example JSON response for regular content chunks:
+
 ```json
 {
   "delta": "currently", // New content since last chunk
@@ -1053,6 +1090,7 @@ Example JSON response for regular content chunks:
 ```
 
 Example JSON response for structured output:
+
 ```json
 {
   "type": "structured",
@@ -1073,30 +1111,34 @@ return $agent->streamResponse($message, 'sse');
 ```
 
 Frontend implementation (JavaScript):
-```javascript
-const eventSource = new EventSource('/chat?message=What is the weather in Boston?');
 
-eventSource.addEventListener('chunk', function(event) {
+```javascript
+const eventSource = new EventSource(
+  "/chat?message=What is the weather in Boston?"
+);
+
+eventSource.addEventListener("chunk", function (event) {
   const data = JSON.parse(event.data);
-  document.getElementById('output').textContent += data.delta;
+  document.getElementById("output").textContent += data.delta;
 });
 
-eventSource.addEventListener('structured', function(event) {
+eventSource.addEventListener("structured", function (event) {
   const data = JSON.parse(event.data);
   handleStructuredOutput(data.content);
 });
 
-eventSource.addEventListener('complete', function(event) {
+eventSource.addEventListener("complete", function (event) {
   eventSource.close();
 });
 
 function handleStructuredOutput(content) {
   // Process structured output (e.g., JSON schema response)
-  console.log('Structured output:', content);
+  console.log("Structured output:", content);
 }
 ```
 
 Example SSE events for regular content:
+
 ```
 event: chunk
 data: {"delta":"currently","content":"The weather in Boston is currently","complete":false}
@@ -1106,6 +1148,7 @@ data: {"content":"The weather in Boston is currently 65°F and partly cloudy."}
 ```
 
 Example SSE event for structured output:
+
 ```
 event: structured
 data: {"type":"structured","delta":"","content":{"name":"John Doe","age":30,"interests":["coding","reading","hiking"]},"complete":true}
@@ -1163,7 +1206,6 @@ Streaming responses can significantly improve perceived performance, especially 
 3. When using SSE, ensure your server is configured to handle long-lived connections
 4. For high-traffic applications, consider implementing a queue system for streaming responses
 
-
 ### LLM Drivers
 
 LarAgent provides a `LlmDriver` interface that allows you to implement custom LLM drivers for different providers. We have several built-in drivers that implement the interface and provide a simple way to use the API.
@@ -1195,10 +1237,13 @@ protected $driver = \LarAgent\Drivers\OpenAi\OpenAiDriver::class;
 #### Available drivers
 
 ##### OpenAiDriver
+
 Default driver, which allows you easy start just by adding OPENAI_API_KEY in your `.env` file
 
 ##### OpenAiCompatible
+
 Driver that can be used with any OpenAI-compatible provider. For example configuration with **ollama** provider would look like:
+
 ```php
 // File: config/laragent.php
 // ...
@@ -1215,7 +1260,9 @@ Driver that can be used with any OpenAI-compatible provider. For example configu
     ],
 ],
 ```
+
 Or any other LLM API which uses the same standards as OpenAI, such as **OpenRouter**:
+
 ```php
 // File: config/laragent.php
 // ...
@@ -1243,7 +1290,7 @@ protected $provider = 'openrouter';
 
 ### Usage in and outside of Laravel
 
-Agent classes is powered by LarAgent's main class `LarAgent\LarAgent`, which often referred as "LarAgent engine".       
+Agent classes is powered by LarAgent's main class `LarAgent\LarAgent`, which often referred as "LarAgent engine".  
 Laragent engine is standalone part which holds all abstractions and doesn't depend on Laravel. It is used to create and manage agents, tools, chat histories, structured output and etc.
 
 So you can use LarAgent's engine outside of Laravel as well. Usage is a bit different than inside Laravel, but the principles are the same.
@@ -1259,6 +1306,7 @@ LarAgent provides a comprehensive event system that allows you to hook into vari
 2. **Engine Hooks**: These hooks dive deeper into the conversation processing pipeline, allowing you to intercept and modify the behavior at crucial points such as message handling, tool execution, and response processing. Each engine hook returns a boolean value to control the flow of execution.
 
 **Nearly every aspect of LarAgent is hookable**, giving you fine-grained control over the agent's behavior. You can intercept and modify:
+
 - Agent lifecycle events
 - Message processing
 - Tool execution
@@ -1269,27 +1317,26 @@ LarAgent provides a comprehensive event system that allows you to hook into vari
 ### Table of Contents
 
 - [Agent](#agent)
-    - [onInitialize](#oninitialize) - Agent initialization
-    - [onConversationStart](#onconversationstart) - New conversation step started
-    - [onConversationEnd](#onconversationend) - Conversation step completed
-    - [onToolChange](#ontoolchange) - Tool added or removed
-    - [onClear](#onclear) - Chat history cleared
-    - [onTerminate](#onterminate) - Agent termination
+  - [onInitialize](#oninitialize) - Agent initialization
+  - [onConversationStart](#onconversationstart) - New conversation step started
+  - [onConversationEnd](#onconversationend) - Conversation step completed
+  - [onToolChange](#ontoolchange) - Tool added or removed
+  - [onClear](#onclear) - Chat history cleared
+  - [onTerminate](#onterminate) - Agent termination
 - [Engine](#engine)
-    - [beforeReinjectingInstructions](#beforereinjectinginstructions) - Before system instructions reinjection
-    - [beforeSend & afterSend](#beforesend--aftersend) - Message handling
-    - [beforeSaveHistory](#beforesavehistory) - Chat history persistence
-    - [beforeResponse / afterResponse](#beforeresponse--afterresponse) - LLM interaction
-    - [beforeToolExecution / afterToolExecution](#beforetoolexecution--aftertoolexecution) - Tool execution
-    - [beforeStructuredOutput](#beforestructuredoutput) - Structured output processing
+  - [beforeReinjectingInstructions](#beforereinjectinginstructions) - Before system instructions reinjection
+  - [beforeSend & afterSend](#beforesend--aftersend) - Message handling
+  - [beforeSaveHistory](#beforesavehistory) - Chat history persistence
+  - [beforeResponse / afterResponse](#beforeresponse--afterresponse) - LLM interaction
+  - [beforeToolExecution / afterToolExecution](#beforetoolexecution--aftertoolexecution) - Tool execution
+  - [beforeStructuredOutput](#beforestructuredoutput) - Structured output processing
 - [Using Laravel events with hooks](#using-laravel-events-with-hooks)
 
 ### Agent
 
-The Agent class provides several hooks that allow you to tap into various points of the agent's lifecycle. Each hook can be overridden in your agent implementation. 
+The Agent class provides several hooks that allow you to tap into various points of the agent's lifecycle. Each hook can be overridden in your agent implementation.
 
 You can find an example implementation for each hook below.
-
 
 #### onInitialize
 
@@ -1306,14 +1353,14 @@ protected function onInitialize()
 
 #### onConversationStart
 
-This hook is triggered at the beginning of each `respond` method call, signaling the start of a new step  in conversation. Use this to prepare conversation-specific resources or logging.
+This hook is triggered at the beginning of each `respond` method call, signaling the start of a new step in conversation. Use this to prepare conversation-specific resources or logging.
 
 ```php
 // Log agent class and message
 protected function onConversationStart()
 {
     Log::info(
-        'Starting new conversation', 
+        'Starting new conversation',
         [
             'agent' => self::class,
             'message' => $this->currentMessage()
@@ -1389,9 +1436,9 @@ protected function onTerminate()
 
 The Engine provides several hooks that allow fine-grained control over the conversation flow, message handling, and tool execution. Each hook returns a boolean value where `true` allows the operation to proceed and `false` prevents it.
 
-__In most cases, it's wise to throw and handle exception instead of just returning `false`, since returning `false` silently stops execution__
+**In most cases, it's wise to throw and handle exception instead of just returning `false`, since returning `false` silently stops execution**
 
-You can override any engine level hook in your agent class. 
+You can override any engine level hook in your agent class.
 
 You can find an example implementations for each hook below.
 
@@ -1399,7 +1446,7 @@ You can find an example implementations for each hook below.
 
 The `beforeReinjectingInstructions` hook is called before the engine reinjects system instructions into the chat history. Use this to modify or validate the chat history before instructions are reinjected or even change the instructions completely.
 
-__As mentioned above, instructions are always injected at the beginning of the chat history, `$reinjectInstructionsPer` defined when to reinject the instructions again. By default it is set to `0` (disabled).__
+**As mentioned above, instructions are always injected at the beginning of the chat history, `$reinjectInstructionsPer` defined when to reinject the instructions again. By default it is set to `0` (disabled).**
 
 ```php
 /**
@@ -1495,8 +1542,6 @@ protected function afterResponse($message)
 }
 ```
 
-
-
 #### beforeToolExecution / afterToolExecution
 
 These hooks are triggered before and after a tool is executed. Perfect for tool-specific validation, logging, or result modification.
@@ -1532,7 +1577,6 @@ protected function afterToolExecution($tool, &$result)
 }
 ```
 
-
 #### beforeStructuredOutput
 
 This hook is called before processing structured output. Use it to modify or validate the response structure.
@@ -1551,16 +1595,16 @@ protected function beforeStructuredOutput(array &$response)
 }
 ```
 
-
 ### Using Laravel events with hooks
 
 LarAgent hooks can be integrated with Laravel's event system to provide more flexibility and better separation of concerns. This allows you to:
+
 - Decouple event handling logic from your agent class
 - Use event listeners and subscribers
 - Leverage Laravel's event broadcasting capabilities
 - Handle events asynchronously using queues
 
-__Consider checking Laravel [Events documentation](https://laravel.com/docs/11.x/events) before proceeding.__
+**Consider checking Laravel [Events documentation](https://laravel.com/docs/11.x/events) before proceeding.**
 
 Here's how you can integrate Laravel events with LarAgent hooks.
 
@@ -1592,7 +1636,7 @@ protected function afterSend($history, $message)
 }
 ```
 
-__In case you want to pass agent in event handler, please use `toDTO` method: `$this->toDTO()`__
+**In case you want to pass agent in event handler, please use `toDTO` method: `$this->toDTO()`**
 
 #### Using Event Listeners
 
@@ -1626,8 +1670,6 @@ protected $listen = [
 ];
 ```
 
-
-
 ## Commands
 
 ### Creating an Agent
@@ -1653,6 +1695,7 @@ php artisan agent:chat AgentName --history=weather_chat_1
 ```
 
 The chat session allows you to:
+
 - Send messages to your agent
 - Get responses in real-time
 - Use any tools configured for the agent
@@ -1686,22 +1729,17 @@ You can create tools which calls another agent and bind the result to the agent 
 
 // @todo add example
 
-
 ### Creating Custom Providers
 
 // @todo add example
-
 
 ### Creating Custom chat histories
 
 // @todo add example
 
-
 ### Chaining Agents
 
 // @todo add example
-
-
 
 ## Contributing
 
@@ -1711,15 +1749,20 @@ We welcome contributions to LarAgent! Whether it's improving documentation, fixi
 
 1. Fork the repository
 2. Clone your fork:
+
 ```bash
 git clone https://github.com/YOUR_USERNAME/LarAgent.git
 cd LarAgent
 ```
+
 3. Install dependencies:
+
 ```bash
 composer install
 ```
+
 4. Create a new branch:
+
 ```bash
 git checkout -b feature/your-feature-name
 ```
@@ -1727,19 +1770,24 @@ git checkout -b feature/your-feature-name
 ### Guidelines
 
 1. **Code Style**
+
    - Use type hints and return types where possible
    - Add PHPDoc blocks for classes and methods
    - Keep methods focused and concise
 
 2. **Testing**
+
    - Add tests for new features
    - Ensure all tests pass before submitting:
+
    ```bash
    composer test
    ```
+
    - Maintain or improve code coverage
 
 3. **Documentation**
+
    - Update README.md for significant changes
    - Add PHPDoc blocks for new classes and methods
    - Include examples for new features
@@ -1752,6 +1800,7 @@ git checkout -b feature/your-feature-name
 ### Pull Request Process
 
 1. Update your fork with the latest changes from main:
+
 ```bash
 git remote add upstream https://github.com/MaestroError/LarAgent.git
 git fetch upstream
@@ -1759,6 +1808,7 @@ git rebase upstream/main
 ```
 
 2. Push your changes:
+
 ```bash
 git push origin feature/your-feature-name
 ```
@@ -1791,9 +1841,9 @@ Please review [our security policy](../../security/policy) on how to report secu
 
 Thanks to these people and projects, LarAgent would not be possible without them:
 
--   [maestroerror](https://github.com/maestroerror)
--   [All Contributors](../../contributors)
--   [openai-php/client](https://github.com/openai-php/client)
+- [maestroerror](https://github.com/maestroerror)
+- [All Contributors](../../contributors)
+- [openai-php/client](https://github.com/openai-php/client)
 
 ## License
 
