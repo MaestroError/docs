@@ -296,6 +296,13 @@ The simplest way is to use the `for()` method to specify a chat history name and
 echo WeatherAgent::for('test_chat')->respond('What is the weather like?');
 ```
 
+If you don't need to save / retrive chat history, because you are using "in_memory" type or for any other reason, you can skip 'for' method:
+
+```php
+// Using a random chat history name
+echo WeatherAgent::ask('What is the weather like?');
+```
+
 ### Using Chainable Methods
 
 For more control over the interaction, you can use the chainable syntax:
@@ -321,6 +328,15 @@ echo WeatherAgent::for('user_1_chat')
 ```
 
 </CodeGroup>
+
+If you don't need to maintain conversation histories, you can just replace `for` with `make` method:
+
+```php
+echo WeatherAgent::make()
+    ->message('What is the weather like?')  // Set the message
+    ->temperature(0.7)                      // Optional: Override temperature
+    ->respond();                            // Get the response
+```
 
 #### Ready made user message
 
@@ -739,8 +755,8 @@ You can access the agent's properties using these methods on an instance of the 
   ```
   </Accordion>
 
-
 {" "}
+
 <Accordion title="getModalities() - Get modalities">
   ```php /** * Get all modalities associated with this agent class */ public
   function getModalities(): array; ``` Returns all modalities associated with

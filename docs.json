@@ -26,11 +26,12 @@
             "pages": [
               "core-concepts/agents",
               "core-concepts/tools",
+              "core-concepts/mcp",
               "core-concepts/chat-history",
               "core-concepts/structured-output",
               "core-concepts/streaming",
-              "core-concepts/llm-drivers",
               "core-concepts/agent-via-api",
+              "core-concepts/llm-drivers",
               "core-concepts/commands",
               "core-concepts/rag",
               "core-concepts/usage-without-laravel"
@@ -41,6 +42,7 @@
             "pages": [
               "customization/events",
               "customization/hooks",
+              "customization/listen-to-events",
               "customization/custom-driver",
               "customization/custom-chat-history"
             ]
