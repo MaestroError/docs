@@ -250,7 +250,7 @@ public function readTheIssue(int $issue_number) {
 
 ```
 
-This way, your can write your own descriptions to the MCP tools, also hard-code/restrict the arguments while making the error surface smaller.
+This way, you can write your own descriptions to the MCP tools, also hard-code/restrict the arguments while making the error surface smaller.
 
 In this example above, if I am building an agent to work only with LarAgent issues, why should LLM generate the same "owner" and "repo" parameters for MCP tool each time? They are the static and should be in every request.
 
