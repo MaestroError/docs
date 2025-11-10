@@ -531,6 +531,11 @@ LarAgent\Events\BeforeToolExecution
   The tool instance about to be executed.
 </ParamField>
 
+<ParamField body="toolCall" type="ToolCallInterface" required>
+  The tool call instance is going to be executed. Get details with `getId`,
+  `getToolName`, & `getArguments` methods
+</ParamField>
+
 **Example:**
 
 ```php
@@ -559,6 +564,11 @@ LarAgent\Events\AfterToolExecution
 
 <ParamField body="tool" type="ToolInterface" required>
   The tool instance that was executed.
+</ParamField>
+
+<ParamField body="toolCall" type="ToolCallInterface" required>
+  The tool call instance is going to be executed. Get details with `getId`,
+  `getToolName`, & `getArguments` methods
 </ParamField>
 
 <ParamField body="result" type="mixed" required>

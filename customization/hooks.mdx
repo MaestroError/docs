@@ -8,7 +8,10 @@ description: "Learn how to use Engine hooks to customize the conversation flow"
 LarAgent's engine hooks provide fine-grained control over the conversation flow, message handling, and tool execution. Unlike agent events that focus on lifecycle, engine hooks dive deeper into the conversation processing pipeline, allowing you to intercept and modify behavior at crucial points.
 
 <Note>
-Each engine hook returns a boolean value where `true` allows the operation to proceed and `false` prevents it. In most cases, it's better to throw and handle exceptions instead of just returning `false`, since returning `false` silently stops execution.
+  Each engine hook returns a boolean value where `true` allows the operation to
+  proceed and `false` prevents it. In most cases, it's better to throw and
+  handle exceptions instead of just returning `false`, since returning `false`
+  silently stops execution.
 </Note>
 
 ## Available Engine Hooks
@@ -20,7 +23,9 @@ You can override any of these methods in your agent class to customize behavior 
 This hook is called before the engine reinjects system instructions into the chat history. Use this to modify or validate the chat history before instructions are reinjected or even change the instructions completely.
 
 <Note>
-Instructions are always injected at the beginning of the chat history. The `$reinjectInstructionsPer` property defines when to reinject the instructions again. By default, it is set to `0` (disabled).
+  Instructions are always injected at the beginning of the chat history. The
+  `$reinjectInstructionsPer` property defines when to reinject the instructions
+  again. By default, it is set to `0` (disabled).
 </Note>
 
 **Example: Modify instructions based on chat history**
@@ -134,9 +139,10 @@ These hooks are triggered before and after a tool is executed. Perfect for tool-
 ```php
 /**
  * @param ToolInterface $tool
+ * @param ToolCallInterface $toolCall
  * @return bool
  */
-protected function beforeToolExecution($tool)
+protected function beforeToolExecution($tool, $toolCall)
 {
     // Check tool permissions
     if (!$this->hasToolPermission($tool->getName())) {
@@ -148,10 +154,11 @@ protected function beforeToolExecution($tool)
 
 /**
  * @param ToolInterface $tool
+ * @param ToolCallInterface $toolCall
  * @param mixed &$result
  * @return bool
  */
-protected function afterToolExecution($tool, &$result)
+protected function afterToolExecution($tool, $toolCall, &$result)
 {
     // Modify or format tool results
     if (is_array($result)) {
@@ -161,6 +168,11 @@ protected function afterToolExecution($tool, &$result)
     return true;
 }
 ```
+
+<Warning>
+  Tool Call has been added from version 0.8.0, if you are using these hooks from
+  version before, please update them, since it is a breaking change!
+</Warning>
 
 ### beforeStructuredOutput
 

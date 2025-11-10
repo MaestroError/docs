@@ -27,10 +27,21 @@ Use HTTP transport for MCP servers accessible via HTTP endpoints:
         'type' => \Redberry\MCPClient\Enums\Transporters::HTTP,
         'base_url' => 'https://api.githubcopilot.com/mcp',
         'timeout' => 30,
+        // Shorthand for bearer auth
         'token' => env('GITHUB_API_TOKEN', null),
+        'headers' => [
+            // Add custom headers here
+        ],
+        // 'string' or 'int' - controls JSON-RPC id type (default: 'int')
+        'id_type' => 'int',
     ],
 ],
 ```
+
+<Note>
+  Everything except "type" & "base_url" are optional, use only when you need
+  them.
+</Note>
 
 ### STDIO Transport
 
@@ -47,9 +58,18 @@ Use STDIO transport for command-line MCP servers:
         ],
         'timeout' => 30,
         'cwd' => base_path(),
+        // milliseconds - delay after process start (default: 100)
+        'startup_delay' => 100,
+        // milliseconds - polling interval for response (default: 20)
+        'poll_interval' => 20,
     ],
 ],
 ```
+
+<Note>
+  Everything, except "type", "cwd" & "command", are optional, use only when you
+  need them.
+</Note>
 
 <Tip>
   You can configure multiple MCP servers simultaneously by adding more entries
