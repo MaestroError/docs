@@ -29,7 +29,12 @@ Check [Creating Custom Drivers](#creating-custom-drivers) for more details about
     providers with the same API format.
   </Card>
   <Card title="GeminiDriver" icon="google" horizontal>
-    Works with Google Gemini API via OpenAI-compatible endpoint
+    Works with Google Gemini API via OpenAI-compatible endpoint (deprecated,
+    keeping for compatibility)
+  </Card>
+  <Card title="Native GeminiDriver" icon="google" horizontal>
+    Works with normal Google Gemini API, Recommended to use it over legacy
+    OpenAI-Compatible endpoint driver.
   </Card>
   <Card title="ClaudeDriver" icon="star-christmas" horizontal>
     Works with Anthropic API, located at
@@ -52,6 +57,14 @@ Check [Creating Custom Drivers](#creating-custom-drivers) for more details about
     LarAgent.
   </Card>
 </CardGroup>
+
+<Warning>
+  **Important!** If you are using openai based Gemini driver
+  (`LarAgent\Drivers\OpenAi\GeminiDriver::class`), please upgrade to new gemini
+  driver (`LarAgent\Drivers\Gemini\GeminiDriver::class`), test your
+  implementation once again and stick with it, since OpenAI-compatible driver
+  will be removed in future releases!
+</Warning>
 
 ## Configuring Drivers
 

@@ -283,6 +283,82 @@ protected $presencePenalty;
 
 > Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics.
 
+## Arbitrary Configuration
+
+You can set custom configuration values on agents that will be passed through to the driver. This is useful for provider-specific settings or experimental features that aren't part of the standard agent configuration.
+
+### Setting Configuration
+
+<CodeGroup>
+```php Property
+// Set configuration in the agent class
+class MyAgent extends Agent
+{
+    protected $configs = [
+        'reasoning_effort' => 'minimal',
+        'custom_header' => 'value',
+    ];
+}
+```
+
+```php Individual Config
+// Set a single configuration value
+$agent->setConfig('custom_key', 'value');
+
+// Get a single configuration value
+$value = $agent->getConfig('custom_key');
+```
+
+```php Multiple Configs
+// Set multiple configs (merge with existing)
+$agent->withConfigs([
+    'key1' => 'value1',
+    'key2' => 'value2'
+]);
+
+// Set multiple configs (replace all)
+$agent->setConfigs([
+    'key1' => 'value1'
+]);
+```
+
+```php Check and Remove
+// Check if config exists
+if ($agent->hasConfig('custom_key')) {
+    // Config exists
+}
+
+// Remove a specific config
+$agent->removeConfig('custom_key');
+
+// Clear all custom configs
+$agent->clearConfigs();
+
+// Get all custom configs
+$configs = $agent->getConfigs();
+```
+
+</CodeGroup>
+
+### Usage Example
+
+```php
+$agent = MyAgent::for('chat-123')
+    ->withConfigs([
+        'custom_header' => 'value',
+        'timeout' => 60,
+        'reasoning_effort' => 'high',
+    ])
+    ->message('Analyze this complex problem')
+    ->respond();
+```
+
+<Info>
+  Custom configurations are passed directly to the driver, allowing you to
+  leverage provider-specific features without modifying the agent's core
+  properties.
+</Info>
+
 ## Using an Agent
 
 There are two ways to interact with your agent: direct response or chainable methods.
