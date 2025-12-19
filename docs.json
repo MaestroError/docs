@@ -36,7 +36,8 @@
               {
                 "group": "General",
                 "pages": [
-                  "guides/introduction"
+                  "guides/introduction",
+                  "guides/upgrade-to-v1"
                 ]
               },
               {
@@ -124,6 +125,11 @@
           "anchor": "Community",
           "href": "https://discord.gg/NAczq2T9F8",
           "icon": "discord"
+        },
+        {
+          "anchor": "Upgrade to v1.0",
+          "href": "/guides/upgrade-to-v1",
+          "icon": "arrow-up-right-dots"
         },
         {
           "anchor": "Blog",

@@ -1,0 +1,808 @@
+---
+title: "Upgrade to v1.0"
+description: "Complete migration guide from LarAgent v0.8 to v1.0 with step-by-step instructions"
+---
+
+This guide provides comprehensive instructions for migrating your LarAgent project from v0.8 to v1.0. Follow the sections in order, starting with the most critical changes that affect the public API.
+
+## Critical Changes
+
+<Warning>
+These changes **will break your code** if not addressed. Review and update these first before upgrading.
+</Warning>
+
+### Message Factory API Changes
+
+The `Message` class is now a **pure factory class** with only typed static factory methods. The following methods have been removed:
+
+| Removed Method | Status |
+|----------------|--------|
+| `Message::create()` | ❌ Removed |
+| `Message::fromArray()` | ❌ Removed |
+| `Message::fromJSON()` | ❌ Removed |
+
+<Steps>
+<Step title="Find Message::create() occurrences">
+  Run this command to locate all usages in your codebase:
+  
+  ```bash
+  grep -rn "Message::create" --include="*.php"
+  ```
+</Step>
+
+<Step title="Replace with typed factory methods">
+  Update your code to use the new typed factory methods:
+  
+  <CodeGroup>
+  ```php Before (v0.8)
+  $message = Message::create('user', 'Hello');
+  $message = Message::create('assistant', 'Hi there');
+  $message = Message::create('system', 'You are helpful');
+  ```
+  
+  ```php After (v1.0)
+  $message = Message::user('Hello');
+  $message = Message::assistant('Hi there');
+  $message = Message::system('You are helpful');
+  ```
+  </CodeGroup>
+</Step>
+
+<Step title="Replace Message::fromArray()">
+  Find occurrences:
+  
+  ```bash
+  grep -rn "Message::fromArray" --include="*.php"
+  ```
+  
+  <CodeGroup>
+  ```php Before (v0.8)
+  $message = Message::fromArray(['role' => 'user', 'content' => 'Hello']);
+  ```
+  
+  ```php After (v1.0)
+  // Use the specific message class:
+  $message = UserMessage::fromArray(['role' => 'user', 'content' => 'Hello']);
+  
+  // Or use MessageArray for collections:
+  $messages = MessageArray::fromArray($arrayOfMessages);
+  ```
+  </CodeGroup>
+</Step>
+
+<Step title="Replace Message::fromJSON()">
+  Find occurrences:
+  
+  ```bash
+  grep -rn "Message::fromJSON" --include="*.php"
+  ```
+  
+  <CodeGroup>
+  ```php Before (v0.8)
+  $message = Message::fromJSON($jsonString);
+  ```
+  
+  ```php After (v1.0)
+  $data = json_decode($jsonString, true);
+  $message = UserMessage::fromArray($data); // or appropriate message class
+  ```
+  </CodeGroup>
+</Step>
+</Steps>
+
+#### Available Factory Methods
+
+| Method | Description |
+|--------|-------------|
+| `Message::user($content, $metadata)` | Create user message |
+| `Message::assistant($content, $metadata)` | Create assistant message |
+| `Message::system($content, $metadata)` | Create system message |
+| `Message::developer($content, $metadata)` | Create developer message |
+| `Message::toolCall($toolCalls, $metadata)` | Create tool call message |
+| `Message::toolResult($content, $toolCallId, $toolName, $metadata)` | Create tool result message |
+
+---
+
+### ToolResultMessage Constructor Signature
+
+<Warning>
+The `ToolResultMessage` constructor signature has changed completely. You must provide `$toolName` for Gemini driver compatibility.
+</Warning>
+
+The constructor now accepts `$toolName` as an optional third parameter.
+
+<CodeGroup>
+```php Constructor v0.8
+public function __construct(array $message, array $metadata = [])
+```
+
+```php Constructor v1.0
+public function __construct(
+    ToolResultContent|string $content,
+    string $toolCallId,
+    string $toolName = '',
+    array $metadata = []
+)
+```
+</CodeGroup>
+
+<Steps>
+<Step title="Find ToolResultMessage usages">
+  ```bash
+  grep -rn "new ToolResultMessage" --include="*.php"
+  ```
+</Step>
+
+<Step title="Update constructor calls">
+  <CodeGroup>
+  ```php Before (v0.8)
+  new ToolResultMessage($resultArray, $metadata);
+  // or
+  new ToolResultMessage(['content' => $result, 'tool_call_id' => $id], $metadata);
+  ```
+  
+  ```php After (v1.0)
+  new ToolResultMessage($content, $toolCallId, $toolName, $metadata);
+  
+  // Or use the factory method (recommended):
+  Message::toolResult($content, $toolCallId, $toolName, $metadata);
+  ```
+  </CodeGroup>
+</Step>
+</Steps>
+
+---
+
+### ToolCallMessage Constructor Signature
+
+The `ToolCallMessage` constructor no longer accepts the `$message` array parameter.
+
+<CodeGroup>
+```php Constructor v0.8
+public function __construct(array $toolCalls, array $message, array $metadata = [])
+```
+
+```php Constructor v1.0
+public function __construct(ToolCallArray|array $toolCalls, array $metadata = [])
+```
+</CodeGroup>
+
+<Steps>
+<Step title="Find ToolCallMessage usages">
+  ```bash
+  grep -rn "new ToolCallMessage" --include="*.php"
+  ```
+</Step>
+
+<Step title="Update constructor calls">
+  <CodeGroup>
+  ```php Before (v0.8)
+  new ToolCallMessage($toolCalls, $messageArray, $metadata);
+  // $messageArray was typically the raw API response array
+  ```
+  
+  ```php After (v1.0)
+  new ToolCallMessage($toolCalls, $metadata);
+  
+  // Or use the factory method (recommended):
+  Message::toolCall($toolCalls, $metadata);
+  ```
+  </CodeGroup>
+</Step>
+</Steps>
+
+---
+
+### ChatHistory Interface Changes
+
+<Warning>
+If you have custom ChatHistory implementations or directly use ChatHistory methods, this section is critical.
+</Warning>
+
+#### Key Changes
+
+1. `getMessages()` now returns `MessageArray` instead of `array`
+2. Several methods have been removed from the interface
+3. New truncation system replaces manual context window management
+
+#### Removed Methods
+
+| Removed Method | Status |
+|----------------|--------|
+| `setContextWindow(int $tokens)` | ❌ Removed |
+| `exceedsContextWindow(int $tokens)` | ❌ Removed |
+| `truncateOldMessages(int $messagesCount)` | ❌ Removed |
+| `saveKeyToMemory()` | ❌ Removed |
+| `loadKeysFromMemory()` | ❌ Removed |
+| `removeChatFromMemory(string $key)` | ❌ Removed |
+
+<Steps>
+<Step title="Update getMessages() usage">
+  <CodeGroup>
+  ```php Before (v0.8)
+  $messages = $chatHistory->getMessages(); // returns array
+  foreach ($messages as $msg) { ... }
+  ```
+  
+  ```php After (v1.0)
+  $messages = $chatHistory->getMessages(); // returns MessageArray
+  foreach ($messages as $msg) { ... }  // Still iterable
+  count($messages);                     // Still countable
+  $messages->all();                     // Get as array if needed
+  $messages->first();                   // Get first message
+  $messages->last();                    // Get last message
+  ```
+  </CodeGroup>
+</Step>
+
+<Step title="Replace context window methods">
+  <CodeGroup>
+  ```php Before (v0.8)
+  $chatHistory->setContextWindow(50000);
+  if ($chatHistory->exceedsContextWindow($tokens)) {
+      $chatHistory->truncateOldMessages(5);
+  }
+  ```
+  
+  ```php After (v1.0)
+  // Configure truncation in Agent class or config:
+  protected $enableTruncation = true;
+  protected $truncationThreshold = 50000;
+  // Truncation is handled automatically by the truncation strategy
+  ```
+  </CodeGroup>
+</Step>
+
+<Step title="Replace chat key management">
+  Use the new Context facade or Agent methods:
+  
+  ```php
+  use LarAgent\Facades\Context;
+  use App\AiAgents\MyAgent;
+  
+  // Option 1: Inside Agent - get chat keys via Agent methods
+  $agent = MyAgent::for('user-123');
+  $chatKeys = $agent->getChatKeys();           // Get all chat history keys
+  $allStorageKeys = $agent->getStorageKeys();  // Get all storage keys
+  $chatIdentities = $agent->getChatIdentities(); // Get chat identities
+  
+  // Option 2: Inside Agent - get current session key
+  $sessionKey = $this->context()->getIdentity()->getKey();
+  $chatName = $this->context()->getIdentity()->getChatName();
+  
+  // Option 3: Outside Agent - use Context facade with agent class
+  $chatKeys = Context::of(MyAgent::class)->getChatKeys();
+  $storageKeys = Context::of(MyAgent::class)->getStorageKeys();
+  
+  // Option 4: Outside Agent - use Context facade with agent name
+  $chatKeys = Context::named('MyAgent')->getChatKeys();
+  $storageKeys = Context::named('MyAgent')->getStorageKeys();
+  ```
+  
+  <Tip>
+  The Context facade provides powerful filtering and iteration capabilities. See the [New Features](#context-facade) section for more details.
+  </Tip>
+</Step>
+</Steps>
+
+---
+
+## Agent Class Changes
+
+### Removed Properties and Methods
+
+#### Removed Properties
+
+| Property | Replacement |
+|----------|-------------|
+| `$includeModelInChatSessionId` | Removed - not supported |
+| `$saveChatKeys` | Automatic - handled by Context system's `IdentityStorage` |
+| `$contextWindowSize` | Use `$truncationThreshold` |
+
+#### Removed Methods
+
+| Method | Replacement |
+|--------|-------------|
+| `keyIncludesModelName()` | Removed - not supported |
+| `withModelInChatSessionId()` | Removed - not supported |
+| `withoutModelInChatSessionId()` | Removed - not supported |
+| `createChatHistory(string $sessionId)` | `createChatHistory()` (no parameter) |
+
+#### Renamed Methods
+
+<Note>
+The old method names still work but are deprecated. Update to the new names when possible.
+</Note>
+
+| Old Method (v0.8) | New Method (v1.0) | Returns | Description |
+|-------------------|-------------------|---------|-------------|
+| `getChatSessionId()` | `getSessionId()` | `string` | Full storage key (e.g., `AgentName_chatHistory_user-123`) |
+| `getChatKey()` | `getSessionKey()` | `string` | Session key passed to `for()` (e.g., `user-123`) |
+
+#### Available Methods
+
+These methods from `HasContext` trait are available:
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `getSessionId()` | `string` | Full storage key |
+| `getSessionKey()` | `string` | Session key passed to `for()` |
+| `getUserId()` | `?string` | User ID if `usesUserId()` was called |
+| `getAgentName()` | `string` | Agent class name |
+| `group()` | `?string` | Group name if set |
+| `context()` | `Context` | Access to context object |
+
+<Steps>
+<Step title="Update method calls">
+  <CodeGroup>
+  ```php Before (v0.8) - deprecated
+  $fullKey = $this->getChatSessionId();
+  $chatKey = $this->getChatKey();
+  ```
+  
+  ```php After (v1.0) - recommended
+  $fullKey = $this->getSessionId();     // Full storage key
+  $sessionKey = $this->getSessionKey(); // Session key portion
+  $userId = $this->getUserId();         // User ID if using forUser()
+  $agentName = $this->getAgentName();   // Agent class name
+  
+  // Or access via context identity:
+  $identity = $this->context()->getIdentity();
+  $fullKey = $identity->getKey();
+  $chatName = $identity->getChatName();
+  $userId = $identity->getUserId();
+  $agentName = $identity->getAgentName();
+  ```
+  </CodeGroup>
+</Step>
+
+<Step title="Remove includeModelInChatSessionId usage">
+  <CodeGroup>
+  ```php Before (v0.8)
+  protected $includeModelInChatSessionId = true;
+  // and
+  $agent->withModelInChatSessionId();
+  $agent->withoutModelInChatSessionId();
+  ```
+  
+  ```php After (v1.0)
+  // This feature has been removed. If you need model-specific sessions,
+  // include the model in your chat key manually:
+  YourAgent::for($userId . '-' . $model);
+  ```
+  </CodeGroup>
+</Step>
+
+<Step title="Replace contextWindowSize with truncationThreshold">
+  <CodeGroup>
+  ```php Before (v0.8)
+  protected $contextWindowSize = 50000;
+  ```
+  
+  ```php After (v1.0)
+  protected $truncationThreshold = 50000;
+  protected $enableTruncation = true;  // Must enable truncation
+  ```
+  </CodeGroup>
+</Step>
+</Steps>
+
+---
+
+### New Context System
+
+LarAgent v1.0 introduces a new **Context System** that manages all storages (chat history, state, identities) through a unified interface.
+
+#### New Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `$storage` | `array` | Default storage drivers for context |
+| `$forceReadHistory` | `bool` | Force read history on construction |
+| `$forceSaveHistory` | `bool` | Force save history after each response |
+| `$forceReadContext` | `bool` | Force read context on construction |
+| `$trackUsage` | `bool` | Enable token usage tracking |
+| `$usageStorage` | `array` | Storage drivers for usage data |
+| `$enableTruncation` | `bool` | Enable automatic truncation |
+
+<CodeGroup>
+```php Before (v0.8)
+$this->chatHistory->addMessage($message);
+```
+
+```php After (v1.0)
+$this->chatHistory()->addMessage($message);
+// or
+$this->context()->getStorage(ChatHistoryStorage::class)->addMessage($message);
+```
+</CodeGroup>
+
+<Tip>
+Configure storage drivers in your Agent class:
+
+```php
+protected $storage = [
+    \LarAgent\Context\Drivers\CacheStorage::class,
+];
+
+// Or use the built-in history drivers:
+protected $history = 'cache';  // Still works
+```
+</Tip>
+
+---
+
+### Config Property Renames
+
+Update your published config file (`config/laragent.php`):
+
+| v0.8 Key | v1.0 Key |
+|----------|----------|
+| `default_context_window` | `default_truncation_threshold` |
+| `chat_history` (in provider) | `history` |
+
+<CodeGroup>
+```php Before (v0.8)
+'providers' => [
+    'default' => [
+        // ...
+        'default_context_window' => 50000,
+        'chat_history' => \LarAgent\History\CacheChatHistory::class,
+    ],
+],
+```
+
+```php After (v1.0)
+'providers' => [
+    'default' => [
+        // ...
+        'default_truncation_threshold' => 50000,
+        'history' => \LarAgent\History\CacheChatHistory::class,
+    ],
+],
+```
+</CodeGroup>
+
+<Info>
+Alternatively, republish the config file:
+
+```bash
+php artisan vendor:publish --tag=laragent-config --force
+```
+</Info>
+
+---
+
+## Driver and Configuration Changes
+
+### DriverConfig DTO for Custom Drivers
+
+<Note>
+This section only affects custom LLM driver implementations.
+</Note>
+
+Driver configurations now use `DriverConfig` DTO internally instead of plain arrays.
+
+<Steps>
+<Step title="Update constructor signature">
+  <CodeGroup>
+  ```php Before (v0.8)
+  class MyCustomDriver extends LlmDriver
+  {
+      public function __construct(array $settings = [])
+      {
+          $this->settings = $settings;
+      }
+  }
+  ```
+  
+  ```php After (v1.0)
+  use LarAgent\Core\DTO\DriverConfig;
+  
+  class MyCustomDriver extends LlmDriver
+  {
+      public function __construct(DriverConfig|array $settings = [])
+      {
+          parent::__construct($settings); // Required!
+          // Custom initialization here
+      }
+  }
+  ```
+  </CodeGroup>
+</Step>
+
+<Step title="Update config access">
+  <CodeGroup>
+  ```php Before (v0.8)
+  $model = $this->settings['model'];
+  $apiKey = $this->settings['api_key'];
+  ```
+  
+  ```php After (v1.0)
+  // Array access still works
+  $model = $this->getSettings()['model'];
+  
+  // Typed access (recommended)
+  $model = $this->getDriverConfig()->model;
+  $apiKey = $this->getDriverConfig()->apiKey;
+  ```
+  </CodeGroup>
+</Step>
+
+<Step title="Update sendMessage signatures">
+  <CodeGroup>
+  ```php Before (v0.8)
+  public function sendMessage(array $messages, array $options = []): AssistantMessage
+  ```
+  
+  ```php After (v1.0)
+  public function sendMessage(array $messages, DriverConfig|array $overrideSettings = []): AssistantMessage
+  ```
+  </CodeGroup>
+</Step>
+</Steps>
+
+---
+
+### Custom ChatHistory Implementations
+
+<Note>
+This section only affects custom ChatHistory classes.
+</Note>
+
+Chat history classes should now extend `ChatHistoryStorage` instead of the old `ChatHistory` abstract class.
+
+<Steps>
+<Step title="Update your custom history class">
+  <CodeGroup>
+  ```php Before (v0.8)
+  use LarAgent\Core\Abstractions\ChatHistory;
+  
+  class MyCustomHistory extends ChatHistory
+  {
+      public function readFromMemory(): void { /* ... */ }
+      public function writeToMemory(): void { /* ... */ }
+      public function saveKeyToMemory(): void { /* ... */ }
+      public function loadKeysFromMemory(): array { /* ... */ }
+      public function removeChatFromMemory(string $key): void { /* ... */ }
+      protected function removeChatKey(string $key): void { /* ... */ }
+  }
+  ```
+  
+  ```php After (v1.0)
+  use LarAgent\Context\Storages\ChatHistoryStorage;
+  use LarAgent\Context\Drivers\YourCustomStorageDriver;
+  
+  class MyCustomHistory extends ChatHistoryStorage
+  {
+      protected array $defaultDrivers = [YourCustomStorageDriver::class];
+  }
+  ```
+  </CodeGroup>
+</Step>
+
+<Step title="Create custom StorageDriver (if needed)">
+  If you need custom storage logic, create a custom StorageDriver:
+  
+  ```php
+  use LarAgent\Context\Contracts\StorageDriver;
+  use LarAgent\Context\Contracts\SessionIdentity;
+  
+  class MyStorageDriver implements StorageDriver
+  {
+      public function readFromMemory(SessionIdentity $identity): ?array
+      {
+          // Your read logic
+      }
+      
+      public function writeToMemory(SessionIdentity $identity, array $data): bool
+      {
+          // Your write logic
+      }
+      
+      public function removeFromMemory(SessionIdentity $identity): bool
+      {
+          // Your remove logic
+      }
+      
+      public static function make(?array $config = null): static
+      {
+          return new static();
+      }
+  }
+  ```
+</Step>
+</Steps>
+
+---
+
+## New Features
+
+<Info>
+These features are new in v1.0 and don't require migration. Consider using them to enhance your agents.
+</Info>
+
+### Message IDs and Timestamps
+
+All messages now have unique IDs and timestamps:
+
+```php
+$message = Message::user('Hello');
+$id = $message->getId();             // e.g., 'msg_abc123...'
+$created = $message->getCreatedAt(); // ISO 8601 timestamp
+```
+
+### Message Extras
+
+Store driver-specific or custom fields:
+
+```php
+$message->setExtra('custom_field', 'value');
+$value = $message->getExtra('custom_field');
+$all = $message->getExtras();
+```
+
+### Usage Tracking
+
+Enable automatic token usage tracking:
+
+```php
+class MyAgent extends Agent
+{
+    protected $trackUsage = true;
+}
+```
+
+### Truncation Strategies
+
+Automatic conversation truncation when context exceeds threshold:
+
+```php
+class MyAgent extends Agent
+{
+    protected $enableTruncation = true;
+    protected $truncationThreshold = 50000;
+    
+    // Override to use custom strategy
+    protected function truncationStrategy()
+    {
+        return new SummarizationStrategy();
+    }
+}
+```
+
+### Context Facade
+
+New facade for managing storage outside of agents:
+
+```php
+use LarAgent\Facades\Context;
+use LarAgent\Context\Storages\ChatHistoryStorage;
+use App\AiAgents\MyAgent;
+
+// ========================================
+// Entry Point 1: Context::of(AgentClass::class)
+// Full agent-based context access (creates temporary agent)
+// ========================================
+
+// Get all chat keys for an agent
+$chatKeys = Context::of(MyAgent::class)->getChatKeys();
+$storageKeys = Context::of(MyAgent::class)->getStorageKeys();
+
+// Fluent filtering API
+$count = Context::of(MyAgent::class)
+    ->forUser('user-123')
+    ->forStorage(ChatHistoryStorage::class)
+    ->count();
+
+// Iterate with full agent access
+Context::of(MyAgent::class)
+    ->forUser('user-123')
+    ->each(function ($identity, $agent) {
+        // $identity is SessionIdentityContract
+        // $agent is fully initialized Agent instance
+        $agent->chatHistory()->clear();
+    });
+
+// Clear/remove operations
+Context::of(MyAgent::class)->clearAllChats();           // Clear all chat data
+Context::of(MyAgent::class)->removeAllChats();          // Remove all chat entries
+Context::of(MyAgent::class)->clearAllChatsByUser('user-123');
+Context::of(MyAgent::class)->removeAllChatsByUser('user-123');
+
+// Get first matching agent
+$agent = Context::of(MyAgent::class)->forUser('user-123')->firstAgent();
+
+// ========================================
+// Entry Point 2: Context::named('AgentName')
+// Lightweight access (no agent initialization)
+// ========================================
+
+// Get keys without creating agent instances
+$chatKeys = Context::named('MyAgent')->getChatKeys();
+$storageKeys = Context::named('MyAgent')->getStorageKeys();
+
+// Custom driver configuration
+$count = Context::named('MyAgent')
+    ->withDrivers([CacheStorage::class])
+    ->forUser('user-123')
+    ->count();
+
+// Clear chats (lightweight - no agent needed)
+Context::named('MyAgent')->clearAllChats();
+Context::named('MyAgent')->removeAllChats();
+```
+
+### DataModel Classes
+
+Use DataModels for structured output:
+
+```php
+class MyResponse extends DataModel
+{
+    #[Desc('The answer to the question')]
+    public string $answer;
+    
+    #[Desc('Confidence level 0-100')]
+    public int $confidence;
+}
+
+class MyAgent extends Agent
+{
+    protected $responseSchema = MyResponse::class;
+}
+
+// Response is automatically reconstructed as MyResponse instance
+$response = MyAgent::ask('What is 2+2?');
+$response->answer;     // "4"
+$response->confidence; // 95
+```
+
+---
+
+## Quick Migration Checklist
+
+<Check>
+Use this checklist to ensure you've covered all migration steps.
+</Check>
+
+<AccordionGroup>
+<Accordion title="Message API Changes">
+- [ ] Replace all `Message::create()` with typed factory methods
+- [ ] Replace all `Message::fromArray()` with specific message class `fromArray()`
+- [ ] Update `ToolResultMessage` constructor calls to include `$toolName`
+- [ ] Update `ToolCallMessage` constructor calls to remove `$message` parameter
+</Accordion>
+
+<Accordion title="Agent Properties & Methods">
+- [ ] Replace `$contextWindowSize` with `$truncationThreshold`
+- [ ] Remove `$saveChatKeys` (now automatic via Context system)
+- [ ] Remove `$includeModelInChatSessionId` and related method calls
+</Accordion>
+
+<Accordion title="Configuration">
+- [ ] Update provider config `default_context_window` → `default_truncation_threshold`
+- [ ] Update provider config `chat_history` → `history`
+</Accordion>
+
+<Accordion title="Custom Implementations">
+- [ ] If custom drivers: update constructor to call `parent::__construct($settings)`
+- [ ] If custom chat history: refactor to use `ChatHistoryStorage` with custom driver
+</Accordion>
+</AccordionGroup>
+
+---
+
+## Getting Help
+
+If you encounter issues during migration:
+
+<CardGroup cols={2}>
+<Card title="GitHub Issues" icon="github" href="https://github.com/MaestroError/LarAgent/issues">
+  Open an issue for bugs or migration problems
+</Card>
+
+<Card title="Discord Community" icon="discord" href="https://discord.gg/NAczq2T9F8">
+  Get help from the community
+</Card>
+</CardGroup>
