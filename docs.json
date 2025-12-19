@@ -34,7 +34,8 @@
                   "v1/agents/creation",
                   "v1/agents/responses",
                   "v1/agents/structured-output",
-                  "v1/agents/streaming"
+                  "v1/agents/streaming",
+                  "v1/agents/llm-drivers"
                 ]
               },
               {
