@@ -12,60 +12,102 @@
     "content": "🔴 LarAgent is powered by Redberry. Need help building AI agents in Laravel? [Talk to us](https://redberry.international/ai-agent-development/?utm_source=documentation&utm_medium=documentation_banner&utm_campaign=AI+service+campaign) →"
   },
   "navigation": {
-    "tabs": [
+    "versions": [
+
       {
-        "tab": "Documentation",
-        "groups": [
+        "version": "1.x",
+        "tabs": [
           {
-            "group": "Get Started",
-            "pages": [
-              "introduction",
-              "quickstart",
-              "development"
+            "tab": "Documentation",
+            "groups": [
+              {
+                "group": "Get Started",
+                "pages": [
+                  "introduction",
+                  "quickstart",
+                  "development"
+                ]
+              }
             ]
           },
           {
-            "group": "Core concepts",
-            "pages": [
-              "core-concepts/agents",
-              "core-concepts/tools",
-              "core-concepts/mcp",
-              "core-concepts/chat-history",
-              "core-concepts/structured-output",
-              "core-concepts/streaming",
-              "core-concepts/agent-via-api",
-              "core-concepts/llm-drivers",
-              "core-concepts/commands",
-              "core-concepts/rag",
-              "core-concepts/usage-without-laravel"
-            ]
-          },
-          {
-            "group": "Extensibility & Customization",
-            "pages": [
-              "customization/events",
-              "customization/hooks",
-              "customization/listen-to-events",
-              "customization/custom-driver",
-              "customization/custom-chat-history"
+            "tab": "Guides",
+            "groups": [
+              {
+                "group": "General",
+                "pages": [
+                  "guides/introduction"
+                ]
+              },
+              {
+                "group": "RAG",
+                "pages": [
+                  "guides/rag/vector-based",
+                  "guides/rag/retrieval-as-tool"
+                ]
+              }
             ]
           }
         ]
       },
       {
-        "tab": "Guides",
-        "groups": [
+        "version": "0.x",
+        "tabs": [
           {
-            "group": "General",
-            "pages": [
-              "guides/introduction"
+            "tab": "Documentation",
+            "groups": [
+              {
+                "group": "Get Started",
+                "pages": [
+                  "introduction",
+                  "quickstart",
+                  "development"
+                ]
+              },
+              {
+                "group": "Core concepts",
+                "pages": [
+                  "v0/core-concepts/agents",
+                  "v0/core-concepts/tools",
+                  "v0/core-concepts/mcp",
+                  "v0/core-concepts/chat-history",
+                  "v0/core-concepts/structured-output",
+                  "v0/core-concepts/streaming",
+                  "v0/core-concepts/agent-via-api",
+                  "v0/core-concepts/llm-drivers",
+                  "v0/core-concepts/commands",
+                  "v0/core-concepts/rag",
+                  "v0/core-concepts/usage-without-laravel"
+                ]
+              },
+              {
+                "group": "Extensibility & Customization",
+                "pages": [
+                  "v0/customization/events",
+                  "v0/customization/hooks",
+                  "v0/customization/listen-to-events",
+                  "v0/customization/custom-driver",
+                  "v0/customization/custom-chat-history"
+                ]
+              }
             ]
           },
           {
-            "group": "RAG",
-            "pages": [
-              "guides/rag/vector-based",
-              "guides/rag/retrieval-as-tool"
+            "tab": "Guides",
+            "groups": [
+              {
+                "group": "General",
+                "pages": [
+                  "guides/introduction"
+                ]
+              },
+              {
+                "group": "RAG",
+                "pages": [
+                  "guides/rag/vector-based",
+                  "guides/rag/retrieval-as-tool"
+                ]
+              }
             ]
           }
         ]
