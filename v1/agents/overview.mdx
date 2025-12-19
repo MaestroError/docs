@@ -1,0 +1,113 @@
+---
+title: "Overview"
+description: "Agents are the core building blocks of LarAgent, representing AI-powered assistants that can interact with users, execute tools, and maintain conversation context."
+---
+
+<Note>
+Agent classes are the foundation of everything in LarAgent. They define how your AI assistants behave, what capabilities they have, and how they process information.
+Other LarAgent features like Tools, Storage, Prompts, etc all revolve around agents.
+</Note>
+
+## What are Agents?
+
+In LarAgent, an **Agent** is a PHP class that represents an AI-powered assistant. Each agent encapsulates:
+
+- **Instructions** — The system prompt that defines the agent's personality, role, and behavior
+- **Model configuration** — Which LLM to use and how it should respond
+- **Tools** — Functions the agent can call to perform actions or retrieve information
+- **Context** — How conversations (chat history) and other data models are stored and retrieved
+
+Think of an agent as a specialized AI assistant tailored to a specific task or domain. 
+
+You might have a `CustomerSupportAgent` for handling support tickets, a `DataAnalysisAgent` for processing reports, or a `SchedulingAgent` for managing appointments.
+Or one agent that ochestrates all mentioned above!
+
+## Why Agents?
+
+LarAgent's agent-centric architecture provides several benefits:
+
+<CardGroup cols={2}>
+  <Card title="Reusability" icon="recycle">
+    Define an agent once and use it across your application with different chat sessions.
+  </Card>
+  <Card title="Encapsulation" icon="box">
+    Keep all AI-related configuration in one place — instructions, tools, and settings.
+  </Card>
+  <Card title="Testability" icon="flask-vial">
+    Test your agents in isolation with predictable inputs and outputs.
+  </Card>
+  <Card title="Flexibility" icon="sliders">
+    Override any configuration at runtime for specific use cases.
+  </Card>
+</CardGroup>
+
+## Agent Lifecycle
+
+When you interact with an agent, here's what happens:
+
+<Steps>
+  <Step title="Initialization">
+    The agent is created with its configured instructions, model, and tools.
+  </Step>
+  <Step title="Message Processing">
+    Your message passes through the `prompt()` method, where you can add context or transform the input.
+  </Step>
+  <Step title="LLM Request">
+    The agent sends the conversation history and your message to the configured LLM.
+  </Step>
+  <Step title="Tool Execution">
+    If the LLM requests tool calls, the agent executes them and continues the conversation.
+  </Step>
+  <Step title="Response">
+    The final response is returned and stored in the chat history.
+  </Step>
+</Steps>
+
+## Quick Example
+
+Here's what a simple agent looks like:
+
+```php
+namespace App\AiAgents;
+
+use LarAgent\Agent;
+
+class AssistantAgent extends Agent
+{
+    protected $model = 'gpt-4o-mini';
+    
+    protected $history = 'cache';
+
+    public function instructions()
+    {
+        return "You are a helpful assistant. Be concise and friendly.";
+    }
+}
+```
+
+Using the agent is straightforward:
+
+```php
+// Start or continue a conversation
+$response = AssistantAgent::for('user-123')->respond('Hello, how can you help me?');
+
+// Or for one-off interactions without persisted history
+$response = AssistantAgent::ask('What is 2 + 2?');
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Create & Configure" icon="plus" href="/v1/agents/creation">
+    Learn how to create agent classes and configure their behavior.
+  </Card>
+  <Card title="Responses" icon="message" href="/v1/agents/responses">
+    Learn how to interact with agents and handle their responses.
+  </Card>
+  <Card title="Streaming" icon="wave-pulse" href="/v1/agents/streaming">
+    Stream responses in real-time for better user experience.
+  </Card>
+  <Card title="Tools" icon="wrench" href="/v1/tools/overview">
+    Extend your agents with custom tools and capabilities.
+  </Card>
+</CardGroup>

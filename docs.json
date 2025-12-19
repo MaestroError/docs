@@ -26,6 +26,30 @@
                   "introduction",
                   "quickstart"
                 ]
+              },
+              {
+                "group": "Agents",
+                "pages": [
+                  "v1/agents/overview",
+                  "v1/agents/creation",
+                  "v1/agents/responses",
+                  "v1/agents/structured-output",
+                  "v1/agents/streaming"
+                ]
+              },
+              {
+                "group": "Tools",
+                "pages": [
+                  "v1/tools/overview"
+                ]
+              },
+              {
+                "group": "Context",
+                "pages": [
+                  "v1/context/overview",
+                  "v1/context/history",
+                  "v1/context/data-model"
+                ]
               }
             ]
           },

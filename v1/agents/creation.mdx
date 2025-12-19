@@ -1,0 +1,315 @@
+---
+title: "Create & Configure"
+description: "Learn how to create agent classes and configure their behavior, model settings, and provider connections."
+---
+
+## Creating an Agent
+
+The recommended way to create a new agent is using the artisan command:
+
+```bash
+php artisan make:agent MyAgent
+```
+
+This generates a new agent class in the `App\AiAgents` directory with all the necessary boilerplate:
+
+```php App/AiAgents/MyAgent.php
+<?php
+
+namespace App\AiAgents;
+
+use LarAgent\Agent;
+
+class MyAgent extends Agent
+{
+    protected $model = 'gpt-4o-mini';
+
+    protected $history = 'in_memory';
+
+    protected $provider = 'default';
+
+    protected $tools = [];
+
+    public function instructions()
+    {
+        return "Define your agent's instructions here.";
+    }
+
+    public function prompt($message)
+    {
+        return $message;
+    }
+}
+```
+
+<Tip>
+Name your agents descriptively based on their purpose. `CustomerSupportAgent` is clearer than `Agent1` or `MyAgent`.
+</Tip>
+
+---
+
+## Core Methods
+
+Override these methods to customize your agent's behavior:
+
+### instructions()
+
+The system prompt that shapes how your agent responds. This defines the agent's personality, role, and guidelines.
+
+```php
+public function instructions()
+{
+    return "You are an expert financial advisor. Provide clear, 
+            actionable advice while always recommending users 
+            consult with a certified professional for major decisions.";
+}
+```
+
+<Tip>
+For simple, static instructions you can use the `$instructions` property instead of the method.
+</Tip>
+
+<Tip>
+For complex or dynamic instructions, consider using Blade template files. This keeps your agent class clean and allows you to leverage Blade's templating features like conditionals and loops.
+</Tip>
+
+### prompt()
+
+Process or augment the user's message before sending it to the LLM. Useful for adding context, formatting, or implementing RAG patterns.
+
+```php
+public function prompt($message)
+{
+    $context = $this->retrieveRelevantContext($message);
+    
+    return "Context: {$context}\n\nUser question: {$message}";
+}
+```
+
+### model()
+
+Dynamically determine which model to use based on custom logic:
+
+```php
+public function model()
+{
+    // Use a more powerful model for complex queries
+    if ($this->isComplexQuery()) {
+        return 'gpt-4o';
+    }
+    
+    return 'gpt-4o-mini';
+}
+```
+
+### API Key and URL
+
+Override these methods to dynamically set API credentials:
+
+```php
+public function getApiKey()
+{
+    // Use different API keys per tenant
+    return auth()->user()->team->openai_api_key;
+}
+
+public function getApiUrl()
+{
+    return config('services.openai.url');
+}
+```
+
+---
+
+## Configuration Properties
+
+### Model & Provider
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `$model` | `string` | The LLM model to use (e.g., `gpt-4o-mini`, `gpt-4o`) |
+| `$provider` | `string` | Provider configuration name from `config/laragent.php` |
+| `$driver` | `string` | Driver class for LLM communication |
+
+```php
+class MyAgent extends Agent
+{
+    protected $model = 'gpt-4o';
+    protected $provider = 'openai';
+    protected $driver = \LarAgent\Drivers\OpenAi\OpenAiDriver::class;
+}
+```
+
+### Response Settings
+
+Control how the LLM generates responses:
+
+<AccordionGroup>
+  <Accordion title="$temperature — Control creativity">
+    Controls randomness in responses. Range: `0.0` (focused/deterministic) to `2.0` (creative/random).
+    
+    ```php
+    protected $temperature = 0.7; // Balanced
+    ```
+  </Accordion>
+  
+  <Accordion title="$maxCompletionTokens — Limit response length">
+    Maximum number of tokens in the AI's response.
+    
+    ```php
+    protected $maxCompletionTokens = 2000;
+    ```
+  </Accordion>
+  
+  <Accordion title="$n — Multiple responses">
+    Generate multiple completion choices. Note: You'll be charged for all generated tokens.
+    
+    ```php
+    protected $n = 3; // Returns array of 3 responses
+    ```
+  </Accordion>
+  
+  <Accordion title="$topP — Nucleus sampling">
+    Alternative to temperature. The model considers tokens with top_p probability mass.
+    
+    ```php
+    protected $topP = 0.1; // Only top 10% probability tokens
+    ```
+    
+    <Warning>
+    Use either `$temperature` or `$topP`, not both.
+    </Warning>
+  </Accordion>
+  
+  <Accordion title="$frequencyPenalty — Reduce repetition">
+    Penalizes tokens based on their frequency in the text. Range: `-2.0` to `2.0`.
+    
+    ```php
+    protected $frequencyPenalty = 0.5; // Reduces verbatim repetition
+    ```
+  </Accordion>
+  
+  <Accordion title="$presencePenalty — Encourage new topics">
+    Penalizes tokens based on whether they've appeared. Range: `-2.0` to `2.0`.
+    
+    ```php
+    protected $presencePenalty = 0.5; // Encourages discussing new topics
+    ```
+  </Accordion>
+</AccordionGroup>
+
+<Info>
+All configuration properties can also be set via the provider settings in `config/laragent.php`.
+</Info>
+
+### History & Tools
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `$history` | `string` | Chat history storage: `in_memory`, `session`, `cache`, `file` |
+| `$tools` | `array` | Array of tool classes the agent can use |
+
+```php
+class MyAgent extends Agent
+{
+    protected $history = 'cache';
+    
+    protected $tools = [
+        \App\Tools\WeatherTool::class,
+        \App\Tools\CalculatorTool::class,
+    ];
+}
+```
+
+<Info>
+Both **Context** (chat history, data models) and **Tools** are core features of LarAgent with extensive configuration options. The properties shown here are just the basics.
+
+- Learn about context management, storage drivers, and truncation strategies in the [Context page](/v1/context/overview)
+- Explore tool creation, parameters, and execution in the [Tools Section](/v1/tools/overview)
+</Info>
+
+---
+
+## Arbitrary Configuration
+
+Pass custom configuration values to the driver for provider-specific settings or experimental features:
+
+<CodeGroup>
+
+```php Property
+
+class MyAgent extends Agent
+{
+    protected $configs = [
+        'reasoning_effort' => 'high',
+        'custom_header' => 'value',
+    ];
+}
+
+```
+
+```php Runtime
+
+$agent = MyAgent::for('chat-123')
+    ->withConfigs([
+        'reasoning_effort' => 'high',
+        'timeout' => 60,
+    ])
+    ->respond('Analyze this problem');
+
+```
+
+```php Individual
+
+// Set single config
+$agent->setConfig('custom_key', 'value');
+
+// Get config
+$value = $agent->getConfig('custom_key');
+
+// Check existence
+if ($agent->hasConfig('custom_key')) {
+    // ...
+}
+
+// Remove config
+$agent->removeConfig('custom_key');
+
+```
+
+</CodeGroup>
+
+<Info>
+Custom configurations are passed directly to the driver, allowing you to leverage provider-specific features without modifying the agent's core properties.
+</Info>
+
+---
+
+## Runtime Configuration
+
+Override any configuration at runtime using chainable methods:
+
+```php
+$response = WeatherAgent::for('user-123')
+    ->withModel('gpt-4o')
+    ->temperature(0.9)
+    ->maxCompletionTokens(1000)
+    ->respond('Write a creative story');
+```
+
+All properties have corresponding chainable methods:
+- `$temperature` → `temperature(float $temp)`
+- `$maxCompletionTokens` → `maxCompletionTokens(int $tokens)`
+- `$topP` → `topP(float $value)`
+- And so on...
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Responses" icon="message" href="/v1/agents/responses">
+    Learn how to interact with agents and handle their responses.
+  </Card>
+  <Card title="Streaming" icon="wave-pulse" href="/v1/agents/streaming">
+    Stream responses in real-time for better user experience.
+  </Card>
+</CardGroup>
