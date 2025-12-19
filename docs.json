@@ -24,8 +24,7 @@
                 "group": "Get Started",
                 "pages": [
                   "introduction",
-                  "quickstart",
-                  "development"
+                  "quickstart"
                 ]
               }
             ]
@@ -37,7 +36,8 @@
                 "group": "General",
                 "pages": [
                   "guides/introduction",
-                  "guides/upgrade-to-v1"
+                  "guides/upgrade-to-v1",
+                  "guides/development"
                 ]
               },
               {
@@ -61,8 +61,7 @@
                 "group": "Get Started",
                 "pages": [
                   "introduction",
-                  "quickstart",
-                  "development"
+                  "quickstart"
                 ]
               },
               {
@@ -99,7 +98,8 @@
               {
                 "group": "General",
                 "pages": [
-                  "guides/introduction"
+                  "guides/introduction",
+                  "guides/development"
                 ]
               },
               {
@@ -135,6 +135,11 @@
           "anchor": "Blog",
           "href": "https://blog.laragent.ai",
           "icon": "newspaper"
+        },
+        {
+          "anchor": "Contributing",
+          "href": "/guides/development",
+          "icon": "code-pull-request"
         }
       ]
     }
