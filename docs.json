@@ -9,7 +9,7 @@
   },
   "favicon": "images/favicon.png",
   "banner": {
-    "content": "🔴 LarAgent is powered by Redberry. Need help building AI agents in Laravel? [Talk to us](https://redberry.international/ai-agent-development/) →"
+    "content": "🔴 LarAgent is powered by Redberry. Need help building AI agents in Laravel? [Talk to us](https://redberry.international/ai-agent-development/?utm_source=documentation&utm_medium=documentation_banner&utm_campaign=AI+service+campaign) →"
   },
   "navigation": {
     "tabs": [
