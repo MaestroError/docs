@@ -1,0 +1,583 @@
+---
+title: "Attribute Tools"
+description: "Create tools by adding the #[Tool] attribute to methods in your agent class — the simplest and most flexible way to define agent capabilities."
+---
+
+<Note>
+The `#[Tool]` attribute is the recommended way to create tools in LarAgent. It transforms regular PHP methods into tools that your agent can invoke, with automatic schema generation from type hints and descriptions.
+</Note>
+
+## Basic Usage
+
+Add the `#[Tool]` attribute to any method in your agent class:
+
+```php
+use LarAgent\Agent;
+use LarAgent\Attributes\Tool;
+
+class WeatherAgent extends Agent
+{
+    protected $model = 'gpt-4o-mini';
+
+    public function instructions()
+    {
+        return 'You are a helpful weather assistant.';
+    }
+
+    #[Tool('Get the current weather for a location')]
+    public function getWeather(string $location, string $unit = 'celsius'): string
+    {
+        $weather = WeatherService::get($location, $unit);
+        return "The weather in {$location} is {$weather['temp']} degrees {$unit}";
+    }
+}
+```
+
+LarAgent automatically:
+- Registers the method as a tool with the given description
+- Extracts parameter names and types from the method signature
+- Generates a JSON schema for the LLM
+- Handles tool invocation and response processing
+
+## Parameter Descriptions
+
+Provide descriptions for each parameter to help the LLM understand what values to pass:
+
+```php
+#[Tool(
+    description: 'Get the current weather for a location',
+    parameterDescriptions: [
+        'location' => 'The city and state, e.g. San Francisco, CA',
+        'unit' => 'Temperature unit: celsius or fahrenheit'
+    ]
+)]
+public function getWeather(string $location, string $unit = 'celsius'): string
+{
+    return WeatherService::get($location, $unit);
+}
+```
+
+<Tip>
+Clear parameter descriptions significantly improve the LLM's ability to call tools correctly. Describing the expected format and providing examples is generally considered as best practice.
+</Tip>
+
+## Using Enums
+
+PHP Enums constrain parameter values to a specific set of options:
+
+```php
+// app/Enums/TemperatureUnit.php
+namespace App\Enums;
+
+enum TemperatureUnit: string
+{
+    case Celsius = 'celsius';
+    case Fahrenheit = 'fahrenheit';
+}
+```
+
+```php
+use App\Enums\TemperatureUnit;
+
+#[Tool(
+    description: 'Get the current weather for a location'
+)]
+public function getWeather(string $location, TemperatureUnit $unit = TemperatureUnit::Celsius): string
+{
+    return WeatherService::get($location, $unit->value);
+}
+```
+
+LarAgent automatically generates an `enum` constraint in the OpenAPI schema before sending to the LLM:
+
+```json
+{
+  "unit": {
+    "type": "string",
+    "enum": ["celsius", "fahrenheit"],
+    "description": "Temperature unit"
+  }
+}
+```
+
+## DataModel Parameters
+
+Use [DataModel](/v1/context/data-model) classes as parameters for complex, structured input:
+
+```php
+// app/DataModels/Address.php
+namespace App\DataModels;
+
+use LarAgent\Core\Abstractions\DataModel;
+use LarAgent\Attributes\Desc;
+
+class Address extends DataModel
+{
+    #[Desc('Street address')]
+    public string $street;
+
+    #[Desc('City name')]
+    public string $city;
+
+    #[Desc('State or province')]
+    public string $state;
+
+    #[Desc('Postal/ZIP code')]
+    public string $postalCode;
+
+    #[Desc('Country code (ISO 3166-1 alpha-2)')]
+    public string $country = 'US';
+}
+```
+
+```php
+use App\DataModels\Address;
+
+#[Tool('Calculate shipping cost to an address')]
+public function calculateShipping(Address $address, float $weight): string
+{
+    // $address is automatically hydrated as an Address instance
+    $zone = $this->getShippingZone($address->country, $address->state);
+    $cost = $this->calculateCost($zone, $weight);
+
+    return "Shipping to {$address->city}, {$address->state} costs \${$cost}";
+}
+```
+
+LarAgent automatically:
+1. Detects the DataModel type hint
+2. Generates a nested JSON schema from the DataModel properties
+3. Converts the LLM's array response back to a DataModel instance
+
+### Nested DataModels
+
+DataModels can contain other DataModels for deeply structured data:
+
+```php
+class ContactInfo extends DataModel
+{
+    #[Desc('Email address')]
+    public string $email;
+
+    #[Desc('Phone number')]
+    public ?string $phone = null;
+}
+
+class Customer extends DataModel
+{
+    #[Desc('Customer full name')]
+    public string $name;
+
+    #[Desc('Contact information')]
+    public ContactInfo $contact;
+
+    #[Desc('Shipping address')]
+    public Address $shippingAddress;
+}
+```
+
+```php
+#[Tool('Create a new customer order')]
+public function createOrder(Customer $customer, array $items): string
+{
+    // Access nested DataModels directly
+    $email = $customer->contact->email;
+    $city = $customer->shippingAddress->city;
+
+    return "Order created for {$customer->name} in {$city}";
+}
+```
+
+### DataModels with Enums
+
+Combine DataModels and Enums for type-safe structured input:
+
+```php
+enum Priority: string
+{
+    case Low = 'low';
+    case Medium = 'medium';
+    case High = 'high';
+    case Urgent = 'urgent';
+}
+
+class SupportTicket extends DataModel
+{
+    #[Desc('Brief description of the issue')]
+    public string $title;
+
+    #[Desc('Detailed description')]
+    public string $description;
+
+    #[Desc('Priority level')]
+    public Priority $priority = Priority::Medium;
+}
+```
+
+```php
+#[Tool('Create a support ticket')]
+public function createTicket(SupportTicket $ticket): string
+{
+    if ($ticket->priority === Priority::Urgent) {
+        $this->notifyOnCall($ticket);
+    }
+
+    return "Ticket created: {$ticket->title} [{$ticket->priority->value}]";
+}
+```
+
+### DataModel Arrays
+
+Use `DataModelArray` for parameters that accept multiple items:
+
+<Tip>
+`DataModelArray` is like a collection for DataModels, but strictly typed. See [DataModel documentation](/v1/context/data-model) for details.
+</Tip>
+
+```php
+use LarAgent\Core\Abstractions\DataModelArray;
+
+class LineItem extends DataModel
+{
+    #[Desc('Product SKU or ID')]
+    public string $productId;
+
+    #[Desc('Quantity to order')]
+    public int $quantity;
+
+    #[Desc('Unit price')]
+    public float $price;
+}
+
+class LineItemArray extends DataModelArray
+{
+    public static function allowedModels(): array
+    {
+        return [LineItem::class];
+    }
+
+    public function getTotal(): float
+    {
+        return array_reduce($this->items, fn($sum, $item) => 
+            $sum + ($item->quantity * $item->price), 0);
+    }
+}
+```
+
+```php
+#[Tool('Process an order with multiple items')]
+public function processOrder(Customer $customer, LineItemArray $items): string
+{
+    $total = $items->getTotal();
+    return "Processing order for {$customer->name}: {$items->count()} items, total: \${$total}";
+}
+```
+
+<Tip>
+`DataModelArray` also supports polymorphic arrays with multiple DataModel types using discriminator fields. See [DataModel documentation](/v1/context/data-model) for details.
+</Tip>
+
+## Optional Parameters
+
+Use nullable types and/or default values for optional parameters:
+
+```php
+#[Tool('Search for products')]
+public function searchProducts(
+    string $query,
+    ?string $category = null,
+    int $limit = 10
+): array {
+    $results = Product::search($query);
+
+    if ($category !== null) {
+        $results = $results->where('category', $category);
+    }
+
+    return $results->take($limit)->get()->toArray();
+}
+```
+
+## Union Types
+
+PHP 8 union types allow parameters to accept multiple types:
+
+```php
+#[Tool('Process payment')]
+public function processPayment(
+    string $orderId,
+    CreditCard|BankAccount|PayPalAccount $paymentMethod
+): string {
+    // LarAgent generates a schema with oneOf for union types
+    if ($paymentMethod instanceof CreditCard) {
+        return $this->chargeCreditCard($orderId, $paymentMethod);
+    }
+    // Handle other payment types...
+}
+```
+
+## Static vs Instance Methods
+
+Both static and instance methods work as tools:
+
+<Tabs>
+  <Tab title="Instance Method">
+    Use instance methods when you need access to the agent instance (`$this`):
+
+    ```php
+    #[Tool('Get user preferences')]
+    public function getUserPreferences(): array
+    {
+        // Access agent properties or methods
+        return $this->context->get('user_preferences', []);
+    }
+    ```
+  </Tab>
+  <Tab title="Static Method">
+    Use static methods for self-contained tools that don't need agent context:
+
+    ```php
+    #[Tool('Calculate tax')]
+    public static function calculateTax(float $amount, string $state): float
+    {
+        return TaxService::calculate($amount, $state);
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+Prefer static methods whenever possible — they're slightly more performant and make dependencies explicit.
+</Tip>
+
+## Tools Without Parameters
+
+Some Tools don't require parameters:
+
+```php
+#[Tool('Get the current server time')]
+public function getServerTime(): string
+{
+    return now()->toIso8601String();
+}
+
+#[Tool('Get available inventory count')]
+public function getInventoryCount(): int
+{
+    return Product::where('in_stock', true)->count();
+}
+```
+
+## Reusable Tool Traits
+
+It's good practice to extract tool groups into traits for reusability and better organization:
+
+```php
+// app/AiAgents/Traits/WeatherTools.php
+namespace App\AiAgents\Traits;
+
+use LarAgent\Attributes\Tool;
+use App\Enums\TemperatureUnit;
+
+trait WeatherTools
+{
+    #[Tool(
+        description: 'Get the current weather for a location',
+        parameterDescriptions: [
+            'location' => 'The city and state, e.g. San Francisco, CA',
+            'unit' => 'Temperature unit'
+        ]
+    )]
+    public function getWeather(string $location, TemperatureUnit $unit = TemperatureUnit::Celsius): string
+    {
+        return WeatherService::get($location, $unit->value);
+    }
+
+    #[Tool('Get the weather forecast for the next 5 days')]
+    public function getForecast(string $location): array
+    {
+        return WeatherService::forecast($location, days: 5);
+    }
+}
+```
+
+Use traits in your agents:
+
+```php
+namespace App\AiAgents;
+
+use LarAgent\Agent;
+use App\AiAgents\Traits\WeatherTools;
+use App\AiAgents\Traits\CalendarTools;
+
+class PersonalAssistant extends Agent
+{
+    use WeatherTools, CalendarTools;
+
+    protected $model = 'gpt-4o';
+
+    public function instructions()
+    {
+        return 'You are a personal assistant that can check weather and manage calendar events.';
+    }
+}
+```
+
+```php
+class TravelAgent extends Agent
+{
+    use WeatherTools; // Reuse weather tools
+
+    protected $model = 'gpt-4o';
+
+    public function instructions()
+    {
+        return 'You help users plan trips and check destination weather.';
+    }
+
+    #[Tool('Search for flights')]
+    public function searchFlights(string $origin, string $destination, string $date): array
+    {
+        return FlightService::search($origin, $destination, $date);
+    }
+}
+```
+
+<Tip>
+Organizing tools into traits by domain (e.g., `WeatherTools`, `CalendarTools`, `PaymentTools`) creates a library of reusable capabilities you can mix and match across agents.
+</Tip>
+
+## Return Values
+
+Tools can return various types — LarAgent converts them to strings for the LLM:
+
+```php
+// String - returned as-is
+#[Tool('Get greeting')]
+public function getGreeting(): string
+{
+    return 'Hello, world!';
+}
+
+// Array - JSON encoded
+#[Tool('Get user data')]
+public function getUserData(int $userId): array
+{
+    return User::find($userId)->toArray();
+}
+
+// Object with __toString - converted to string
+#[Tool('Get order status')]
+public function getOrderStatus(string $orderId): Order
+{
+    return Order::find($orderId);
+}
+```
+
+<Warning>
+Keep tool responses concise. Large responses consume tokens and may confuse the LLM. Return only the information needed to continue the conversation.
+</Warning>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Write clear descriptions">
+    Tool and parameter descriptions are the LLM's only guide for when and how to use tools. Be specific about:
+    - What the tool does
+    - Expected input formats
+    - What the tool returns
+
+    ```php
+    // ❌ Vague
+    #[Tool('Get data')]
+    public function getData($id) { ... }
+
+    // ✅ Clear
+    #[Tool('Retrieve customer order history by customer ID')]
+    public function getOrderHistory(
+        string $customerId
+    ): array { ... }
+    ```
+  </Accordion>
+
+  <Accordion title="Use appropriate types">
+    Leverage PHP's type system to constrain inputs:
+    - Use `int`, `float`, `bool` for primitives
+    - Use Enums for fixed option sets
+    - Use DataModels for complex structures
+    - Use nullable types for optional parameters
+
+    ```php
+    // ✅ Strong typing
+    #[Tool('Set ticket priority')]
+    public function setPriority(int $ticketId, Priority $priority): string { ... }
+    ```
+  </Accordion>
+
+  <Accordion title="Handle errors gracefully">
+    Return informative error messages to LLM instead of throwing exceptions:
+
+    ```php
+    #[Tool('Get user by email')]
+    public function getUser(string $email): string
+    {
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return "No user found with email: {$email}";
+        }
+
+        return json_encode($user->only(['id', 'name', 'email']));
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Keep tools focused">
+    Each tool should do one thing well. Split complex operations into multiple tools:
+
+    ```php
+    // ❌ Too broad
+    #[Tool('Manage orders')]
+    public function manageOrder($action, $orderId, $data) { ... }
+
+    // ✅ Focused
+    #[Tool('Create a new order')]
+    public function createOrder(Customer $customer, LineItemArray $items) { ... }
+
+    #[Tool('Cancel an existing order')]
+    public function cancelOrder(string $orderId, string $reason) { ... }
+
+    #[Tool('Get order status')]
+    public function getOrderStatus(string $orderId) { ... }
+    ```
+  </Accordion>
+
+  <Accordion title="Limit the number of tools">
+    Too many tools can overwhelm the LLM and lead to poor tool selection. As a general guideline:
+    - **Small models** (e.g., GPT-4o-mini, Claude Haiku): Up to **10 tools**
+    - **Large models** (e.g., GPT-4o, Claude Sonnet/Opus): Up to **30 tools**
+
+    If you need more tools, consider:
+    - Grouping related functionality into fewer, more versatile tools
+    - Using different agents for different domains
+    - Dynamically registering only relevant tools based on context
+    - Orchestrating multiple agents with specialized toolsets
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Tool Classes" icon="puzzle-piece" href="/v1/tools/tool-classes">
+    Create dedicated classes for complex or shared tools.
+  </Card>
+  <Card title="Inline Tools" icon="code" href="/v1/tools/inline-tools">
+    Build tools dynamically at runtime.
+  </Card>
+  <Card title="Tool Configuration" icon="sliders" href="/v1/tools/configuration">
+    Configure tool choice, parallel execution, and more.
+  </Card>
+  <Card title="DataModels" icon="database" href="/v1/context/data-model">
+    Learn more about DataModel classes for structured data.
+  </Card>
+</CardGroup>

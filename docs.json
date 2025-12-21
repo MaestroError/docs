@@ -42,7 +42,10 @@
                 "group": "Tools",
                 "pages": [
                   "v1/tools/overview",
-                  "v1/tools/attribute-tools"
+                  "v1/tools/attribute-tools",
+                  "v1/tools/tool-classes",
+                  "v1/tools/inline-tools",
+                  "v1/tools/configuration"
                 ]
               },
               {
