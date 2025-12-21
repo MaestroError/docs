@@ -1,0 +1,128 @@
+---
+title: "Overview"
+description: "Tools extend your agent's capabilities, allowing them to perform actions like calling APIs, querying databases, or executing any custom logic."
+---
+
+<Note>
+Tools (also known as function calling) allow your AI agents to interact with external systems and services, expanding their capabilities beyond text generation. When an LLM needs to perform an action, it calls a tool and uses the result to formulate its response.
+</Note>
+
+## What are Tools?
+
+In LarAgent, a **Tool** is a function or class that an agent can invoke to perform actions or retrieve information. Tools bridge the gap between AI reasoning and real-world operations.
+
+Common use cases include:
+- Fetching data from APIs or databases
+- Sending emails or notifications
+- Performing calculations
+- Interacting with external services
+
+When an agent determines it needs information or needs to take action, it calls the appropriate tool, receives the result, and uses it to continue the conversation.
+
+## Creating Tools
+
+LarAgent offers three ways to define tools, each suited for different use cases:
+
+<CardGroup cols={3}>
+  <Card title="Tool Attribute" icon="wand-magic-sparkles" href="/v1/tools/attribute-tools">
+    **Recommended.** Transform agent methods into tools with a simple attribute — best for most use cases.
+  </Card>
+  <Card title="Tool Classes" icon="puzzle-piece" href="/v1/tools/tool-classes">
+    Create dedicated reusable tool classes — perfect for complex or shared tools.
+  </Card>
+  <Card title="Inline Tools" icon="code" href="/v1/tools/inline-tools">
+    Build tools programmatically at runtime — ideal for dynamic, context-dependent tools.
+  </Card>
+</CardGroup>
+
+### Quick Examples
+
+<Tabs>
+  <Tab title="Tool Attribute">
+    The simplest approach — add the `#[Tool]` attribute to any method in your agent class:
+
+    ```php
+    use LarAgent\Attributes\Tool;
+
+    #[Tool('Get the current weather for a location')]
+    public function getWeather(string $location, string $unit = 'celsius'): string
+    {
+        return WeatherService::get($location, $unit);
+    }
+    ```
+  </Tab>
+  <Tab title="Tool Class">
+    Create a dedicated class for complex or reusable tools:
+
+    ```php
+    class WeatherTool extends LarAgent\Tool
+    {
+        protected string $name = 'get_weather';
+        protected string $description = 'Get the current weather for a location';
+
+        protected array $properties = [
+            'location' => [
+                'type' => 'string',
+                'description' => 'City and state, e.g. San Francisco, CA',
+            ],
+        ];
+
+        public function execute(array $input): mixed
+        {
+            return WeatherService::get($input['location']);
+        }
+    }
+    ```
+  </Tab>
+  <Tab title="Inline Tool">
+    Build tools dynamically using the fluent API:
+
+    ```php
+    use LarAgent\Tool;
+
+    Tool::create('get_weather', 'Get the current weather')
+        ->addProperty('location', 'string', 'City name')
+        ->setCallback(fn($location) => WeatherService::get($location));
+    ```
+  </Tab>
+</Tabs>
+
+## Tool Execution Flow
+
+When an agent uses tools:
+
+<Steps>
+  <Step title="LLM Decision">
+    The LLM analyzes the conversation and determines a tool call is needed.
+  </Step>
+  <Step title="Tool Invocation">
+    LarAgent automatically executes the requested tool with the provided arguments.
+  </Step>
+  <Step title="Result Processing">
+    The tool's return value is sent back to the LLM as context.
+  </Step>
+  <Step title="Response Generation">
+    The LLM uses the tool result to formulate its final response.
+  </Step>
+</Steps>
+
+<Tip>
+LarAgent handles the entire tool execution loop automatically — you just define your tools and the agent does the rest.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Attribute Tools" icon="wand-magic-sparkles" href="/v1/tools/attribute-tools">
+    Learn how to create tools using the #[Tool] attribute on agent methods.
+  </Card>
+  <Card title="Tool Classes" icon="puzzle-piece" href="/v1/tools/tool-classes">
+    Build reusable tool classes for complex functionality.
+  </Card>
+  <Card title="Inline Tools" icon="code" href="/v1/tools/inline-tools">
+    Create tools dynamically at runtime.
+  </Card>
+  <Card title="Structured Output" icon="database" href="/v1/agents/structured-output">
+    Get type-safe responses using DataModels and schemas.
+  </Card>
+</CardGroup>

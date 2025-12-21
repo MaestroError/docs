@@ -41,7 +41,8 @@
               {
                 "group": "Tools",
                 "pages": [
-                  "v1/tools/overview"
+                  "v1/tools/overview",
+                  "v1/tools/attribute-tools"
                 ]
               },
               {
