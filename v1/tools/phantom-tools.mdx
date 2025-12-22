@@ -1,0 +1,373 @@
+---
+title: "Phantom Tools"
+description: "Phantom Tools return control to your application instead of executing automatically, enabling external handling, user confirmation, and API integration."
+---
+
+<Note>
+Phantom Tools follow the same interface as regular tools but instead of automatic execution, they return the tool call details to your application — giving you full control over when and how the tool is executed.
+</Note>
+
+## What are Phantom Tools?
+
+When the LLM calls a regular tool, LarAgent automatically executes it and feeds the result back to the LLM. **Phantom Tools** break this cycle — they return the tool call details to your application, allowing you to:
+
+- Handle execution externally (different service, API, etc.)
+- Request user confirmation before proceeding
+- Expose tool calls through your own API
+- Queue execution for background processing
+
+## Creating Phantom Tools
+
+### At Runtime
+
+```php
+use LarAgent\PhantomTool;
+
+$phantomTool = PhantomTool::create('process_payment', 'Process a payment transaction')
+    ->addProperty('amount', 'number', 'Payment amount in cents')
+    ->addProperty('currency', 'string', 'Currency code (e.g., USD, EUR)')
+    ->addProperty('description', 'string', 'Payment description')
+    ->setRequired('amount')
+    ->setRequired('currency');
+
+$agent->withTool($phantomTool);
+```
+
+### In Agent Class
+
+Define phantom tools in the `registerTools()` method:
+
+```php
+use LarAgent\Agent;
+use LarAgent\PhantomTool;
+
+class PaymentAgent extends Agent
+{
+    protected $model = 'gpt-4o';
+
+    public function instructions()
+    {
+        return 'You help users process payments and manage transactions.';
+    }
+
+    public function registerTools()
+    {
+        return [
+            PhantomTool::create('process_payment', 'Process a payment transaction')
+                ->addProperty('amount', 'number', 'Payment amount in cents')
+                ->addProperty('currency', 'string', 'Currency code')
+                ->setRequired('amount')
+                ->setRequired('currency'),
+
+            PhantomTool::create('refund_payment', 'Refund a previous payment')
+                ->addProperty('transaction_id', 'string', 'Original transaction ID')
+                ->addProperty('reason', 'string', 'Reason for refund')
+                ->setRequired('transaction_id'),
+        ];
+    }
+}
+```
+
+## Handling Phantom Tool Calls
+
+When the LLM decides to call a phantom tool, the agent returns an array with `tool_calls` instead of a text response (or `ToolCallMessage` when using `->returnMessage()`):
+
+```php
+use LarAgent\Message;
+use LarAgent\Messages\ToolCallMessage;
+
+$agent = PaymentAgent::for('user-123');
+$response = $agent->respond('Charge $50 for the subscription');
+
+// Response is an array when phantom tools are called
+if (is_array($response) && isset($response['tool_calls'])) {
+    foreach ($response['tool_calls'] as $toolCall) {
+        $id = $toolCall['id'];                                    // Tool call ID
+        $name = $toolCall['function']['name'];                    // 'process_payment'
+        $args = json_decode($toolCall['function']['arguments'], true); // ['amount' => 5000, 'currency' => 'USD']
+
+        // Handle the tool execution externally
+        $result = match($name) {
+            'process_payment' => $this->paymentService->charge($args),
+            'refund_payment' => $this->paymentService->refund($args),
+            default => ['error' => 'Unknown tool'],
+        };
+
+        // Add tool result to chat history and continue conversation
+        $agent->addMessage(Message::toolResult(json_encode($result), $id, $name));
+    }
+
+    // Continue the conversation with tool results
+    $finalResponse = $agent->respond();
+}
+```
+
+<Tip>
+Use `->returnMessage()` before `respond()` to get a `ToolCallMessage` instance instead of an array, giving you access to the `getToolCalls()` method with `ToolCall` objects.
+</Tip>
+
+### Multiple Phantom Tool Calls
+
+When parallel tool calls are enabled, the LLM may request multiple phantom tools at once:
+
+```php
+use LarAgent\Message;
+
+$agent = PaymentAgent::for('user-123');
+$response = $agent->respond('Charge $50 and send a receipt email');
+
+if (is_array($response) && isset($response['tool_calls'])) {
+    // Process all tool calls
+    foreach ($response['tool_calls'] as $toolCall) {
+        $id = $toolCall['id'];
+        $name = $toolCall['function']['name'];
+        $args = json_decode($toolCall['function']['arguments'], true);
+
+        $result = $this->executeExternally($name, $args);
+
+        // Add each tool result to the chat history (result must be a string)
+        $agent->addMessage(Message::toolResult(json_encode($result), $id, $name));
+    }
+
+    // Continue conversation after all tool results are added
+    $finalResponse = $agent->respond();
+}
+```
+
+## Use Cases
+
+<Note>
+Phantom Tools where created to support user provided external tools while [exposing Agents via API](v1/agents/agent-via-api), but they can be useful in many scenarios
+</Note>
+
+<CardGroup cols={2}>
+  <Card title="External Services" icon="cloud">
+    Hand off execution to external APIs or microservices that require special authentication or handling.
+  </Card>
+  <Card title="User Confirmation" icon="user-check">
+    Pause for user approval before executing sensitive or irreversible actions.
+  </Card>
+  <Card title="API Exposure" icon="code">
+    Make tool calls available through your API for frontend or mobile app handling.
+  </Card>
+  <Card title="Async Processing" icon="clock">
+    Queue tool execution for background processing with job queues.
+  </Card>
+</CardGroup>
+
+### User Confirmation Example
+
+```php
+use LarAgent\Message;
+
+// Controller method
+public function chat(Request $request)
+{
+    $agent = PaymentAgent::for($request->user()->id);
+    $response = $agent->respond($request->message);
+
+    if (is_array($response) && isset($response['tool_calls'])) {
+        $toolCall = $response['tool_calls'][0]; // Get first tool call
+        $args = json_decode($toolCall['function']['arguments'], true);
+
+        // Store tool call info in session for later confirmation
+        session(['pending_tool_call' => [
+            'id' => $toolCall['id'],
+            'name' => $toolCall['function']['name'],
+            'arguments' => $args,
+        ]]);
+
+        // Return tool call details to frontend for confirmation
+        return response()->json([
+            'requires_confirmation' => true,
+            'tool_call_id' => $toolCall['id'],
+            'tool_name' => $toolCall['function']['name'],
+            'arguments' => $args,
+            'confirmation_message' => "Process payment of \${$args['amount'] / 100}?",
+        ]);
+    }
+
+    return response()->json(['message' => $response]);
+}
+
+// Confirmation endpoint
+public function confirmToolCall(Request $request)
+{
+    $pending = session('pending_tool_call');
+    $result = $this->paymentService->charge($pending['arguments']);
+
+    $agent = PaymentAgent::for($request->user()->id);
+    $agent->addMessage(Message::toolResult(
+        json_encode($result),
+        $pending['id'],
+        $pending['name']
+    ));
+
+    $response = $agent->respond();
+
+    session()->forget('pending_tool_call');
+
+    return response()->json(['message' => $response]);
+}
+```
+
+### Background Processing Example
+
+```php
+use App\Jobs\ProcessToolCall;
+use LarAgent\Message;
+
+$agent = PaymentAgent::for($chatId);
+$response = $agent->respond($message);
+
+if (is_array($response) && isset($response['tool_calls'])) {
+    foreach ($response['tool_calls'] as $toolCall) {
+        // Dispatch each tool call to queue
+        ProcessToolCall::dispatch(
+            agentClass: PaymentAgent::class,
+            chatId: $chatId,
+            toolCallId: $toolCall['id'],
+            toolName: $toolCall['function']['name'],
+            arguments: json_decode($toolCall['function']['arguments'], true),
+        );
+    }
+
+    return 'Your request is being processed...';
+}
+```
+
+The job handler would then:
+
+```php
+// In ProcessToolCall job
+public function handle()
+{
+    $result = $this->executeToolExternally($this->toolName, $this->arguments);
+
+    $agent = ($this->agentClass)::for($this->chatId);
+    $agent->addMessage(Message::toolResult(
+        json_encode($result),
+        $this->toolCallId,
+        $this->toolName
+    ));
+
+    // Continue conversation or notify user
+    $response = $agent->respond();
+    // ... notify user of completion
+}
+```
+
+## Mixing Regular and Phantom Tools
+
+You can use both regular and phantom tools in the same agent:
+
+```php
+use LarAgent\Agent;
+use LarAgent\PhantomTool;
+use LarAgent\Attributes\Tool;
+
+class AssistantAgent extends Agent
+{
+    // Regular tool - executes automatically
+    #[Tool('Get the current time')]
+    public function getTime(): string
+    {
+        return now()->toIso8601String();
+    }
+
+    // Regular tool - executes automatically
+    #[Tool('Search for products')]
+    public function searchProducts(string $query): array
+    {
+        return Product::search($query)->take(5)->get()->toArray();
+    }
+
+    public function registerTools()
+    {
+        return [
+            // Phantom tool - returns for external handling
+            PhantomTool::create('place_order', 'Place an order for products')
+                ->addProperty('product_ids', 'array', 'Product IDs to order')
+                ->addProperty('quantities', 'array', 'Quantities for each product')
+                ->setRequired('product_ids')
+                ->setRequired('quantities'),
+        ];
+    }
+}
+```
+
+<Warning>
+When mixing regular and phantom tools: if the LLM calls both types in parallel, regular tools execute first, then the phantom tool call is returned. The conversation only returns to you when all regular tool executions are complete and at least one phantom tool was called.
+</Warning>
+
+<Tip>
+Use regular tools for safe, read-only operations and phantom tools for actions that modify state, cost money, or require confirmation.
+</Tip>
+
+## Using returnMessage() for Type-Safe Access
+
+For more control, use `returnMessage()` to get a `ToolCallMessage` instance instead of an array:
+
+```php
+use LarAgent\Message;
+use LarAgent\Messages\ToolCallMessage;
+
+$agent = PaymentAgent::for('user-123')->returnMessage();
+$response = $agent->respond('Process my payment');
+
+if ($response instanceof ToolCallMessage) {
+    $toolCalls = $response->getToolCalls(); // ToolCallArray collection
+
+    foreach ($toolCalls as $toolCall) {
+        $id = $toolCall->getId();           // string
+        $name = $toolCall->getToolName();   // string
+        $args = json_decode($toolCall->getArguments(), true);
+
+        $result = $this->executeExternally($name, $args);
+        $agent->addMessage(Message::toolResult(json_encode($result), $id, $name));
+    }
+
+    $finalResponse = $agent->respond();
+}
+```
+
+## Phantom Tool Properties
+
+Phantom tools support the same property definitions as regular tools:
+
+```php
+PhantomTool::create('create_invoice', 'Create and send an invoice')
+    ->addProperty('customer_id', 'string', 'Customer ID')
+    ->addProperty('items', 'array', 'Line items for the invoice')
+    ->addProperty('due_date', 'string', 'Due date in ISO 8601 format')
+    ->addProperty('send_email', 'boolean', 'Whether to send email notification')
+    ->setRequired('customer_id')
+    ->setRequired('items');
+```
+
+### With Enum Constraints
+
+```php
+PhantomTool::create('update_status', 'Update order status')
+    ->addProperty('order_id', 'string', 'Order ID')
+    ->addProperty('status', 'string', 'New status', ['pending', 'processing', 'shipped', 'delivered'])
+    ->setRequired('order_id')
+    ->setRequired('status');
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Tool Configuration" icon="sliders" href="/v1/tools/configuration">
+    Configure tool choice, parallel execution, and runtime management.
+  </Card>
+  <Card title="Attribute Tools" icon="wand-magic-sparkles" href="/v1/tools/attribute-tools">
+    Create tools using the #[Tool] attribute.
+  </Card>
+  <Card title="Inline Tools" icon="code" href="/v1/tools/inline-tools">
+    Create tools dynamically at runtime.
+  </Card>
+  <Card title="Responses" icon="message" href="/v1/agents/responses">
+    Learn about handling agent responses.
+  </Card>
+</CardGroup>

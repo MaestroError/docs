@@ -35,7 +35,8 @@
                   "v1/agents/responses",
                   "v1/agents/structured-output",
                   "v1/agents/streaming",
-                  "v1/agents/llm-drivers"
+                  "v1/agents/llm-drivers",
+                  "v1/agents/agent-via-api"
                 ]
               },
               {
@@ -45,7 +46,8 @@
                   "v1/tools/attribute-tools",
                   "v1/tools/tool-classes",
                   "v1/tools/inline-tools",
-                  "v1/tools/configuration"
+                  "v1/tools/configuration",
+                  "v1/tools/phantom-tools"
                 ]
               },
               {
