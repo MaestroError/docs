@@ -34,3 +34,10 @@ Install our Github App to auto propagate changes from your repo to your deployme
 ## To Do
 
 - Add tab for extensibility, including custom driver, storage and other creation flows (Like guides, but separate) and reference link in main doc pages
+
+- review merged inline and class tools doc page: v1/tools/other-tools.mdx +
+
+- Update MCP with mcp_tool_caching https://github.com/MaestroError/LarAgent/pull/105
+
+- Context pages + RAG
+- Where to put All commands page?

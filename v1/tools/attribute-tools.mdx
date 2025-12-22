@@ -350,6 +350,78 @@ Both static and instance methods work as tools:
 Prefer static methods whenever possible — they're slightly more performant and make dependencies explicit.
 </Tip>
 
+## Injecting External Data
+
+When your tools need data from outside the agent (e.g., from a controller), use custom setter methods:
+
+```php
+namespace App\AiAgents;
+
+use LarAgent\Agent;
+use LarAgent\Attributes\Tool;
+use App\Models\User;
+
+class OrderAgent extends Agent
+{
+    protected $model = 'gpt-4o-mini';
+
+    protected ?User $currentUser = null;
+
+    public function setUser(User $user): self
+    {
+        $this->currentUser = $user;
+        return $this;
+    }
+
+    public function instructions()
+    {
+        return 'You help users manage their orders.';
+    }
+
+    #[Tool('Get my recent orders')]
+    public function getMyOrders(int $limit = 5): array
+    {
+        if (!$this->currentUser) {
+            return ['error' => 'No user context available'];
+        }
+
+        return $this->currentUser->orders()
+            ->latest()
+            ->take($limit)
+            ->get()
+            ->toArray();
+    }
+
+    #[Tool('Get my account balance')]
+    public function getMyBalance(): string
+    {
+        if (!$this->currentUser) {
+            return 'Unable to retrieve balance: no user context';
+        }
+
+        return "Your current balance is \${$this->currentUser->balance}";
+    }
+}
+```
+
+Call the setter before interacting with the agent:
+
+```php
+// In your controller
+public function chat(Request $request)
+{
+    $response = OrderAgent::for($request->user()->id)
+        ->setUser($request->user())
+        ->respond($request->message);
+
+    return response()->json(['message' => $response]);
+}
+```
+
+<Tip>
+Return `$this` from setter methods to enable fluent chaining with other agent methods.
+</Tip>
+
 ## Tools Without Parameters
 
 Some Tools don't require parameters:
@@ -568,11 +640,8 @@ Keep tool responses concise. Large responses consume tokens and may confuse the 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Tool Classes" icon="puzzle-piece" href="/v1/tools/tool-classes">
-    Create dedicated classes for complex or shared tools.
-  </Card>
-  <Card title="Inline Tools" icon="code" href="/v1/tools/inline-tools">
-    Build tools dynamically at runtime.
+<Card title="Tool Classes & Inline Tools" icon="puzzle-piece" href="/v1/tools/other-tools">
+    Create reusable tool classes or build tools dynamically at runtime.
   </Card>
   <Card title="Tool Configuration" icon="sliders" href="/v1/tools/configuration">
     Configure tool choice, parallel execution, and more.

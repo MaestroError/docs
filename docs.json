@@ -44,8 +44,8 @@
                 "pages": [
                   "v1/tools/overview",
                   "v1/tools/attribute-tools",
-                  "v1/tools/tool-classes",
-                  "v1/tools/inline-tools",
+                  "v1/tools/mcp",
+                  "v1/tools/other-tools",
                   "v1/tools/configuration",
                   "v1/tools/phantom-tools"
                 ]

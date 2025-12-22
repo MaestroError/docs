@@ -1,0 +1,423 @@
+---
+title: "Model Context Protocol (MCP)"
+sidebarTitle: "MCP"
+description: "Integrate external MCP servers to dynamically extend your agent with tools and resources"
+---
+
+## Overview
+
+The Model Context Protocol (MCP) integration enables your Agents to dynamically discover and use **tools** and **resources** provided by external MCP servers. This powerful feature allows you to extend your agent's capabilities without writing custom tool implementations.
+
+<Info>
+  MCP support is provided through the `redberry/mcp-client-laravel` package,
+  which is included as a dependency.
+</Info>
+
+## Configuration
+
+Configure MCP servers in your `config/laragent.php` file under the `mcp_servers` key. LarAgent supports two transport types: HTTP and STDIO.
+
+### HTTP Transport
+
+Use HTTP transport for MCP servers accessible via HTTP endpoints:
+
+```php config/laragent.php
+'mcp_servers' => [
+    'github' => [
+        'type' => \Redberry\MCPClient\Enums\Transporters::HTTP,
+        'base_url' => 'https://api.githubcopilot.com/mcp',
+        'timeout' => 30,
+        // Shorthand for bearer auth
+        'token' => env('GITHUB_API_TOKEN', null),
+        'headers' => [
+            // Add custom headers here
+        ],
+        // 'string' or 'int' - controls JSON-RPC id type (default: 'int')
+        'id_type' => 'int',
+    ],
+],
+```
+
+<Note>
+  Everything except "type" & "base_url" are optional, use only when you need
+  them.
+</Note>
+
+### STDIO Transport
+
+Use STDIO transport for command-line MCP servers:
+
+```php config/laragent.php
+'mcp_servers' => [
+    'mcp_server_memory' => [
+        'type' => \Redberry\MCPClient\Enums\Transporters::STDIO,
+        'command' => [
+            'npx',
+            '-y',
+            '@modelcontextprotocol/server-memory',
+        ],
+        'timeout' => 30,
+        'cwd' => base_path(),
+        // milliseconds - delay after process start (default: 100)
+        'startup_delay' => 100,
+        // milliseconds - polling interval for response (default: 20)
+        'poll_interval' => 20,
+    ],
+],
+```
+
+<Note>
+  Everything, except "type", "cwd" & "command", are optional, use only when you
+  need them.
+</Note>
+
+<Tip>
+  You can configure multiple MCP servers simultaneously by adding more entries
+  to the `mcp_servers` array.
+</Tip>
+
+## Registering MCP Servers in Agents
+
+Once configured, register MCP servers in your agent class using either a property or a method.
+
+### Using Property
+
+The simplest approach is to define the `$mcpServers` property:
+
+```php
+use LarAgent\Agent;
+
+class MyAgent extends Agent
+{
+    protected $mcpServers = [
+        'github',
+        'mcp_server_memory',
+    ];
+}
+```
+
+### Using Method
+
+For more control and dynamic nature, implement the `registerMcpServers()` method:
+
+```php
+use LarAgent\Agent;
+
+class MyAgent extends Agent
+{
+    public function registerMcpServers()
+    {
+        return [
+            'github',
+            'mcp_server_memory',
+        ];
+    }
+}
+```
+
+## Filtering Tools and Resources
+
+By default, LarAgent fetches only **tools** from MCP servers. You can explicitly control what to fetch using filters.
+
+### Fetch Specific Types
+
+Use the `:tools` or `:resources` suffix to specify what to fetch:
+
+```php
+protected $mcpServers = [
+    'mcp_server_memory:tools',
+    'mcp_everything:resources',
+];
+```
+
+### Include/Exclude Specific Items
+
+Use `only` and `except` filters to control which tools or resources are registered:
+
+<CodeGroup>
+```php Only specific tools
+public function registerMcpServers()
+{
+    return [
+        'github:tools|only:search_repositories,get_issues',
+    ];
+}
+```
+
+```php Exclude specific tools
+public function registerMcpServers()
+{
+    return [
+        'mcp_server_memory:tools|except:delete_entities,delete_observations,delete_relations',
+    ];
+}
+```
+
+```php Resources with filters
+public function registerMcpServers()
+{
+    return [
+        'mcp_everything:resources|only:Resource 1,Resource 2',
+    ];
+}
+```
+
+</CodeGroup>
+
+<Warning>
+  When using filters, separate multiple items with commas and ensure there are
+  no spaces after the commas.
+</Warning>
+
+## Working with Resources
+
+Resources are data sources provided by MCP servers. While tools are automatically registered, resources need to be explicitly requested via `"mcp_server_name:resources"`.
+
+Alternatively, resources and tools can be accessed manually through the `mcpClient` property.
+
+### Manual Resource Access
+
+Access resources directly in your agent methods:
+
+```php
+use LarAgent\Agent;
+
+class MyAgent extends Agent
+{
+    protected $mcpServers = ['mcp_everything'];
+
+    public function instructions()
+    {
+        // Read a resource from the MCP server
+        $resourceData = $this->mcpClient
+            ->connect('mcp_everything')
+            ->readResource('test://static/resource/1');
+
+        // Use resource data in your instructions
+        $context = $resourceData['contents'][0]['text'];
+
+        return "You are a helpful assistant. Context: {$context}";
+    }
+}
+```
+
+### Resource Response Structure
+
+The `readResource()` method returns an array with the following structure:
+
+```php
+[
+    "contents" => [
+        [
+            "uri" => "test://static/resource/1",
+            "name" => "Resource 1",
+            "mimeType" => "text/plain",
+            "text" => "Resource 1: This is a plaintext resource"
+        ]
+    ]
+]
+```
+
+<ResponseField name="contents" type="array">
+Array containing resource content objects.
+
+<Expandable title="Content object properties">
+  <ResponseField name="uri" type="string">
+  Unique identifier for the resource following URI format.
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+  Human-readable name of the resource.
+  </ResponseField>
+  
+  <ResponseField name="mimeType" type="string">
+  MIME type indicating the resource content format (e.g., `text/plain`, `application/json`).
+  </ResponseField>
+  
+  <ResponseField name="text" type="string">
+  The actual resource content as text.
+  </ResponseField>
+</Expandable>
+</ResponseField>
+
+### Registering Resources as Tools
+
+You can make resources available as tools by explicitly requesting them:
+
+```php
+protected $mcpServers = [
+    'mcp_everything:resources',
+];
+```
+
+When registered this way, resources become callable tools that your agent can use during conversations. Description of resource is appended with "Read the resource: ". So, if resource description is "Revenue report 2025", the tool description will be: "Read the resource: Revenue report 2025"
+
+### Manual Tool Access
+
+You can run MCP tools manually via `mcpClient` property and `callTool` method:
+
+```php
+
+#[Tool("Get issue details from LarAgent repository")]
+public function readTheIssue(int $issue_number) {
+    $args = [
+      "issue_number" => $issue_number,
+      "owner" => "maestroerror",
+      "repo" => "LarAgent"
+    ];
+    return $this->mcpClient->connect("github")->callTool("get_issue", $args);
+}
+
+```
+
+This way, you can write your own descriptions to the MCP tools, also hard-code/restrict the arguments while making the error surface smaller.
+
+In this example above, if I am building an agent to work only with LarAgent issues, why should LLM generate the same "owner" and "repo" parameters for MCP tool each time? They are the static and should be in every request.
+
+## How MCP Tools Work
+
+MCP tools are dynamically constructed based on metadata from the MCP server:
+
+<Steps>
+<Step title="Discovery">
+  LarAgent connects to the configured MCP server and retrieves available tools and their schemas.
+</Step>
+
+<Step title="Registration">
+  Tools are automatically registered with your agent, including their
+  parameters, descriptions, and required fields.
+</Step>
+
+<Step title="Execution">
+  When the LLM decides to use an MCP tool, LarAgent handles the invocation and returns results to the conversation.
+</Step>
+</Steps>
+
+<Check>
+  MCP tools integrate seamlessly with your agent's existing tool system,
+  appearing alongside custom tools.
+</Check>
+
+<Warning>
+  Initialization -> fetching -> registration of tools: The process is pretty
+  intensive, using more than 3 mcp servers per Agent can dramatically decrease
+  the performance / response time
+</Warning>
+
+## Complete Example
+
+Here's a comprehensive example combining multiple MCP servers with filtering:
+
+```php
+<?php
+
+namespace App\Agents;
+
+use LarAgent\Agent;
+
+class ResearchAgent extends Agent
+{
+    protected $model = 'gpt-4';
+
+    public function registerMcpServers()
+    {
+        return [
+            // Get all tools from GitHub MCP server
+            'github:tools',
+
+            // Get memory tools but exclude delete operations
+            'mcp_server_memory:tools|except:delete_entities,delete_observations',
+
+            // Get specific resources
+            'knowledge_base:resources|only:docs,api_reference',
+        ];
+    }
+
+    public function instructions()
+    {
+        // Load additional context from a resource
+        $apiDocs = $this->mcpClient
+            ->connect('knowledge_base')
+            ->readResource('docs://api_reference');
+
+        $context = $apiDocs['contents'][0]['text'] ?? '';
+
+        return "You are a research assistant with access to GitHub and memory storage.
+                Use the available tools to search repositories, track information, and
+                answer questions. API Reference: {$context}";
+    }
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+<Accordion title="Choose the right transport type">
+  - Use **HTTP transport** for cloud-based or remote MCP servers
+  - Use **STDIO transport** for local command-line tools and npm packages
+  - Consider timeout values based on expected response times
+</Accordion>
+
+<Accordion title="Filter tools strategically">
+
+Use `except` to exclude dangerous or unnecessary operations (like delete
+functions). Use `only` when you need a specific subset of tools for focused
+agents. Start with all tools and refine based on actual usage patterns
+
+  </Accordion>
+
+<Accordion title="Secure your credentials">
+  Always use environment variables for API tokens and sensitive credentials;
+  Never hardcode tokens directly in configuration files; Review MCP server
+  documentation for required authentication
+</Accordion>
+
+<Accordion title="Handle resources efficiently">
+  - Load resources in `instructions()` when context is needed
+  - Cache resource data when appropriate to avoid repeated fetches
+  - Consider resource size impact on token usage
+</Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<Warning>
+  Ensure MCP server commands are available in your environment. For STDIO
+  transport with npm packages, verify Node.js and npm/npx are installed and
+  accessible.
+</Warning>
+
+**For HTTP transport:**
+
+- Verify the `base_url` is correct and accessible
+- Check authentication tokens are valid
+- Ensure firewall rules allow outbound connections
+
+**For STDIO transport:**
+
+- Confirm the command exists (`npx`, `node`, etc.)
+- Verify the working directory (`cwd`) has proper permissions
+- Check the command array syntax is correct
+
+**Tools and other issues:**
+
+- Verify the MCP server name matches your configuration exactly
+- Check filter syntax if using `only` or `except`
+- Ensure the MCP server actually provides tools (not just resources)
+- Review logs for connection or parsing errors
+
+- Increase the `timeout` value in your MCP server configuration
+- For STDIO servers, ensure the command starts quickly
+- Consider network latency for HTTP servers
+
+## Related Resources
+
+<CardGroup cols={2}>
+<Card title="Tools" icon="wrench" href="/core-concepts/tools">
+  Learn how custom tools work alongside MCP tools
+</Card>
+
+<Card title="Agents" icon="robot" href="/core-concepts/agents">
+  Understand the agent architecture and configuration
+</Card>
+</CardGroup>
