@@ -37,7 +37,7 @@ Install our Github App to auto propagate changes from your repo to your deployme
 
 - review merged inline and class tools doc page: v1/tools/other-tools.mdx +
 
-- Update MCP with mcp_tool_caching https://github.com/MaestroError/LarAgent/pull/105
+- Update MCP with mcp_tool_caching https://github.com/MaestroError/LarAgent/pull/105 +
 
 - Context pages + RAG
 - Where to put All commands page?

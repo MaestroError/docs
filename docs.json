@@ -55,6 +55,8 @@
                 "pages": [
                   "v1/context/overview",
                   "v1/context/history",
+                  "v1/context/truncation",
+                  "v1/context/usage-tracking",
                   "v1/context/data-model"
                 ]
               }
