@@ -349,6 +349,106 @@ class ResearchAgent extends Agent
 }
 ```
 
+## Tool Caching
+
+MCP tools require network calls to fetch tool definitions from MCP servers, which can add significant latency to agent initialization. LarAgent provides automatic tool caching to dramatically improve performance for subsequent requests.
+
+### Configuration
+
+Configure MCP tool caching in your `config/laragent.php` file:
+
+```php config/laragent.php
+'mcp_tool_caching' => [
+    'enabled' => env('MCP_TOOL_CACHE_ENABLED', false),
+    'ttl' => env('MCP_TOOL_CACHE_TTL', 3600), // 1 hour
+    'store' => env('MCP_TOOL_CACHE_STORE', null), // Cache store to use (null = default)
+],
+```
+
+<ParamField body="enabled" type="boolean" default="false">
+Enable or disable MCP tool caching.
+</ParamField>
+
+<ParamField body="ttl" type="integer" default="3600">
+Cache time-to-live in seconds. Default is 1 hour (3600 seconds).
+</ParamField>
+
+<ParamField body="store" type="string | null" default="null">
+The cache store to use. Set to `null` to use Laravel's default cache store, or specify a dedicated store like `redis`.
+</ParamField>
+
+### Enabling Caching
+
+Enable caching globally in your `.env` file:
+
+```bash .env
+MCP_TOOL_CACHE_ENABLED=true
+MCP_TOOL_CACHE_TTL=3600
+MCP_TOOL_CACHE_STORE=redis  # Optional: use dedicated store
+```
+
+### Per-Agent Configuration
+
+You can also configure tool caching on individual agents by setting properties directly in your agent class:
+
+```php
+use LarAgent\Agent;
+
+class ResearchAgent extends Agent
+{
+    protected $mcpServers = ['github', 'mcp_server_memory'];
+
+    // Enable caching for this agent
+    protected $toolCaching = true;
+
+    // Cache TTL in seconds (default: 3600)
+    protected $toolCacheTtl = 7200;
+
+    // Cache store to use (null = default store)
+    protected $toolCacheStore = 'redis';
+}
+```
+
+<Tip>
+  Per-agent configuration overrides the global settings from `config/laragent.php`, allowing you to fine-tune caching behavior for specific agents.
+</Tip>
+
+### How It Works
+
+Once enabled, caching happens automatically with no manual intervention needed:
+
+```php
+use App\Agents\ResearchAgent;
+
+// First call: fetches from MCP server + caches tools
+$agent = ResearchAgent::for('user_123');
+$response = $agent->respond('Hello'); // Tools fetched & cached
+
+// Subsequent calls: uses cache (no network call)
+$agent2 = ResearchAgent::for('user_456');
+$response2 = $agent2->respond('Hi'); // Tools loaded from cache ⚡
+```
+
+<Info>
+  The cache is shared across all users and agent instances. Tool definitions are cached based on the MCP server name and the fetch method (tools/resources).
+</Info>
+
+### Clearing the Cache
+
+Clear the MCP tool cache when you need to refresh tool definitions:
+
+```bash
+php artisan agent:tool-clear
+```
+
+<Tip>
+  Run this command after updating your MCP servers or when tool definitions change.
+</Tip>
+
+<Note>
+  The clear command is production-safe for Redis. It uses `SCAN` instead of `KEYS` to prevent blocking and correctly handles Laravel's cache prefix.
+</Note>
+
 ## Best Practices
 
 <AccordionGroup>
