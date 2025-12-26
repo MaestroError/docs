@@ -40,4 +40,7 @@ Install our Github App to auto propagate changes from your repo to your deployme
 - Update MCP with mcp_tool_caching https://github.com/MaestroError/LarAgent/pull/105 +
 
 - Context pages + RAG
+    - Maybe we should add truncation and usage tracking inside chat history page? Try it, check the size
+- Add other section in menu and add Events & Hooks page pointing to the extensibility tab where we will have all details and guides around events. Move context and identity storage events from v1/context/overview.mdx to there
+
 - Where to put All commands page?
