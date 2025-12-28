@@ -35,6 +35,7 @@
                   "v1/agents/responses",
                   "v1/agents/structured-output",
                   "v1/agents/streaming",
+                  "v1/agents/storage",
                   "v1/agents/llm-drivers",
                   "v1/agents/agent-via-api"
                 ]
@@ -54,10 +55,29 @@
                 "group": "Context",
                 "pages": [
                   "v1/context/overview",
+                  "v1/context/storage-drivers",
                   "v1/context/history",
-                  "v1/context/truncation",
                   "v1/context/usage-tracking",
-                  "v1/context/data-model"
+                  "v1/context/data-model",
+                  "v1/context/facade"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Customization & Extensibility",
+            "groups": [
+              {
+                "group": "Events",
+                "pages": [
+                  "v1/customization/events/history"
+                ]
+              },
+              {
+                "group": "Context",
+                "pages": [
+                  "v1/customization/context/storage",
+                  "v1/customization/context/storage-driver"
                 ]
               }
             ]

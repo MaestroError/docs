@@ -41,6 +41,8 @@ Install our Github App to auto propagate changes from your repo to your deployme
 
 - Context pages + RAG
     - Maybe we should add truncation and usage tracking inside chat history page? Try it, check the size
+        - Trancation in history, usage separately
+
 - Add other section in menu and add Events & Hooks page pointing to the extensibility tab where we will have all details and guides around events. Move context and identity storage events from v1/context/overview.mdx to there
 
 - Where to put All commands page?

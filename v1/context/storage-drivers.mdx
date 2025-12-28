@@ -1,0 +1,324 @@
+---
+title: "Storage Drivers"
+description: "Configure persistence backends for chat history, usage tracking, and custom storages"
+---
+
+LarAgent provides several storage drivers for persisting data. Each driver can be used with any storage type — chat history, usage tracking, identity storage, or custom storages.
+
+## Available Drivers
+
+| Driver | Use Case | Persistence | Performance |
+|--------|----------|-------------|-------------|
+| `InMemoryStorage` | Testing, single-request processing | None | Fastest |
+| `SessionStorage` | Web requests, user sessions | Session lifetime | Fast |
+| `CacheStorage` | Temporary storage with TTL | Configurable | Fast |
+| `FileStorage` | Simple file-based persistence | Permanent | Moderate |
+| `SimpleEloquentStorage` | Database (JSON blob) | Permanent | Moderate |
+| `EloquentStorage` | Database (normalized rows) | Permanent | Best for querying |
+
+## Driver Chain (Fallback Pattern)
+
+LarAgent `Storage` classes support configuring multiple drivers in a chain. The first driver is the **primary**, and subsequent drivers serve as **fallbacks**:
+
+```php
+protected $history = [
+    CacheStorage::class,  // Primary: read first, write first
+    FileStorage::class,   // Fallback: used if primary fails on read
+];
+```
+
+**How it works:**
+- **Reading**: Tries the primary driver first. If it returns no data, falls back to the next driver.
+- **Writing**: Writes to **all** drivers in the chain to keep them synchronized.
+- **Removing**: Removes from **all** drivers.
+
+<Tip>
+Use the fallback pattern for high availability. For example, cache for speed with file storage as a durable backup.
+</Tip>
+
+---
+
+## InMemoryStorage
+
+Stores data in PHP memory. Data is lost after the request ends. Ideal for testing or single-request agents.
+
+```php
+protected $history = 'in_memory';
+```
+
+<Note>
+There is no point in using InMemoryStorage with other storage drivers in a fallback chain.
+</Note>
+
+---
+
+## SessionStorage
+
+Uses Laravel's session to store data. Perfect for web applications where context should persist across user requests.
+
+```php
+protected $history = 'session';
+```
+
+<Warning>
+Requires an active Laravel session. Not suitable for CLI or queue workers.
+</Warning>
+
+---
+
+## CacheStorage
+
+Uses Laravel's cache system. Supports different cache stores like Redis, Memcached, or file.
+
+```php
+protected $history = 'cache';
+```
+
+<Accordion title="Custom configuration">
+```php MyAgent
+use LarAgent\Context\Drivers\CacheStorage;
+
+protected function defaultStorageDrivers(): array
+{
+    return [
+        // Use default cache store
+        new CacheStorage(),
+        
+        // Or use a specific cache store
+        new CacheStorage('redis'),
+    ];
+}
+```
+
+**Constructor arguments:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `$store` | `?string` | `null` | Cache store name (e.g., `'redis'`, `'memcached'`). Uses default cache store if `null`. |
+</Accordion>
+
+---
+
+## FileStorage
+
+Stores data as JSON files on disk using Laravel's filesystem.
+
+```php
+protected $history = 'file';
+```
+
+<Accordion title="Custom configuration">
+```php MyAgent
+use LarAgent\Context\Drivers\FileStorage;
+
+protected function defaultStorageDrivers(): array
+{
+    return [
+        // Use default disk and folder
+        new FileStorage(),
+        
+        // Use specific disk
+        new FileStorage('local'),
+        
+        // Use specific disk and custom folder
+        new FileStorage('s3', 'agent_storage'),
+    ];
+}
+```
+
+**Constructor arguments:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `$disk` | `?string` | `null` | Storage disk name. Uses `config('filesystems.default')` if `null`. |
+| `$folder` | `string` | `'laragent_storage'` | Folder path within the disk where files are stored. |
+</Accordion>
+
+---
+
+## EloquentStorage
+
+Stores each item as a separate database row. Best for applications that need to query individual messages or require advanced database features.
+
+```bash
+# Publish and run migration
+php artisan la:publish eloquent-storage
+php artisan migrate
+```
+
+```php
+protected $history = 'database';
+```
+
+<Note>
+Example here uses `historyStorageDrivers` instead of `defaultStorageDrivers` to show chat history specific laravel model override.
+</Note>
+
+<Accordion title="Custom configuration">
+```php MyAgent
+use LarAgent\Context\Drivers\EloquentStorage;
+
+protected function historyStorageDrivers(): string|array
+{
+    // Use default model
+    $storage = new EloquentStorage();
+    
+    // Or use custom model
+    $storage = new EloquentStorage(\App\Models\ChatMessage::class);
+    
+    // With custom column names
+    $storage = (new EloquentStorage(\App\Models\ChatMessage::class))
+        ->setKeyColumn('chat_session_id')
+        ->setPositionColumn('order');
+    
+    return [$storage];
+}
+```
+
+**Constructor arguments:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `$model` | `?string` | `null` | Eloquent model class name. Defaults to `LaragentMessage::class`. |
+
+**Additional methods:**
+| Method | Description |
+|--------|-------------|
+| `setKeyColumn(string $column)` | Column for session identifier |
+| `setPositionColumn(string $column)` | Column for item ordering |
+</Accordion>
+
+<Accordion title="Custom model example">
+```php
+<?php
+
+namespace App\Models;
+
+use LarAgent\Context\Models\LaragentMessage;
+
+class ChatMessage extends LaragentMessage
+{
+    protected $table = 'chat_messages';
+    
+    protected $fillable = [
+        'session_key',
+        'position',
+        'role',
+        'content',
+        'message_uuid',
+        'message_created',
+        'tool_calls',
+        'tool_call_id',
+        'usage',
+        'metadata',
+        'extras',
+        // Custom fields
+        'user_id',
+        'agent_name',
+    ];
+    
+    // Add relationships
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+    
+    // Add scopes
+    public function scopeByAgent($query, string $agentName)
+    {
+        return $query->where('agent_name', $agentName);
+    }
+}
+```
+</Accordion>
+
+---
+
+## SimpleEloquentStorage
+
+Stores all data as a JSON blob in a single database row. Simple setup, good for basic use cases.
+
+```bash
+# Publish and run migration
+php artisan la:publish simple-eloquent-storage
+php artisan migrate
+```
+
+```php
+protected $history = 'database-simple';
+```
+
+<Accordion title="Custom configuration">
+```php MyAgent
+use LarAgent\Context\Drivers\SimpleEloquentStorage;
+
+protected function defaultStorageDrivers(): array
+{
+    return [
+        // Use default model
+        new SimpleEloquentStorage(),
+        
+        // Or use custom model
+        new SimpleEloquentStorage(\App\Models\CustomStorage::class),
+    ];
+}
+```
+
+**Constructor arguments:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `$model` | `?string` | `null` | Eloquent model class name. Defaults to `LaragentStorage::class`. |
+</Accordion>
+
+<Accordion title="Custom model example">
+```php
+<?php
+
+namespace App\Models;
+
+use LarAgent\Context\Models\LaragentStorage;
+
+class CustomStorage extends LaragentStorage
+{
+    protected $table = 'my_custom_storage';
+    
+    protected $fillable = [
+        'key',
+        'data',
+        'user_id', // Additional field
+    ];
+    
+    protected $casts = [
+        'data' => 'array',
+    ];
+    
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+}
+```
+</Accordion>
+
+---
+
+## Selection Guide
+
+| Use Case | Recommended Driver(s) |
+|----------|----------------------|
+| Development/Testing | `in_memory` |
+| Simple web app | `session` or `cache` |
+| Production with Redis | `cache` (redis) |
+| Need to query data | `database` (EloquentStorage) |
+| Simple DB persistence | `database-simple` |
+| High availability | `cache` + `file` (fallback chain) |
+| Serverless/Lambda | `database` or `database-simple` |
+| Long-running processes | `cache` + `database` |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Chat History" icon="comments" href="/v1/context/history">
+    Configure chat history storage and truncation strategies.
+  </Card>
+  <Card title="Usage Tracking" icon="chart-line" href="/v1/context/usage-tracking">
+    Track token usage and costs with storage drivers.
+  </Card>
+</CardGroup>
