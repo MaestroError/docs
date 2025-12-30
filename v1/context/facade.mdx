@@ -1,0 +1,536 @@
+---
+title: "Context Facade"
+description: "Manage agent contexts, chat histories, and storage operations with an Eloquent-like fluent API"
+---
+
+The Context Facade provides an Eloquent-like fluent API for managing agent contexts, chat histories, and storage operations. It offers two distinct approaches for accessing context data, each suited for different use cases.
+
+## Access Methods
+
+The Context Facade provides two entry points, each returning a different manager type:
+
+<CardGroup cols={2}>
+<Card title="Context::of()" icon="cube">
+  Full agent access with configuration and callbacks receiving agent instances
+</Card>
+
+<Card title="Context::named()" icon="tag">
+  Lightweight access using just an agent name string, ideal for admin tools
+</Card>
+</CardGroup>
+
+### Choosing the Right Approach
+
+| Feature | `of()` / `agent()` | `named()` |
+|---------|-------------------|-----------|
+| Returns | `ContextManager` | `NamedContextManager` |
+| Requires agent class | Yes | No |
+| Initializes agent | Yes (temp instance) | No |
+| Needs `withDrivers()` | No (uses agent config) | Yes (or uses config default) |
+| `each()` callback args | `($identity, $agent)` | `($identity)` |
+| `map()` callback args | `($identity, $agent)` | `($identity)` |
+| `firstAgent()` method | Available | Not available |
+| `clearAllChats()` returns | `static` (chainable) | `int` (count) |
+
+<Tip>
+It is recommended to use `named()` for lightweight access, since it does not require initializing agent instances, works directly with context and drivers - can be more efficient for most of the cases. Use `of()` only when you need full agent functionality or access to agent-defined configuration.
+</Tip>
+
+---
+
+## Using `Context::of()`
+
+The `of()` method (aliased as `agent()`) creates a `ContextManager` that requires a full agent class. This approach initializes a temporary agent instance internally, giving you access to agent configuration and the ability to work with agent instances in callbacks.
+
+```php
+use LarAgent\Facades\Context;
+use App\AiAgents\SupportAgent;
+
+// Using of()
+Context::of(SupportAgent::class)->clearAllChats();
+
+// Using agent() - alias for of()
+Context::agent(SupportAgent::class)->clearAllChats();
+```
+
+<Tip>
+Use `of()` when you need full agent functionality, want to interact with agents, or when agent configuration matters.
+</Tip>
+
+### Filter Methods
+
+All filter methods are chainable and create immutable instances (the original instance remains unchanged).
+
+```php
+// Filter by user
+Context::of(SupportAgent::class)
+    ->forUser('user-123')
+    ->clearAllChats();
+
+// Filter by chat/session name
+Context::of(SupportAgent::class)
+    ->forChat('support-ticket-456')
+    ->clear();
+
+// Filter by group
+Context::of(SupportAgent::class)
+    ->forGroup('premium')
+    ->each(function ($identity, $agent) {
+        // Process premium user chats
+    });
+
+// Filter by storage type
+use LarAgent\Context\Storages\ChatHistoryStorage;
+
+Context::of(SupportAgent::class)
+    ->forStorage(ChatHistoryStorage::class)
+    ->count();
+
+// Custom filter with callback
+Context::of(SupportAgent::class)
+    ->filter(function ($identity) {
+        return str_starts_with($identity->getChatName(), 'vip-');
+    })
+    ->count();
+```
+
+#### Chaining Multiple Filters
+
+Filters can be chained for complex queries (all filters are AND-ed together):
+
+```php
+Context::of(SupportAgent::class)
+    ->forUser('user-123')
+    ->forGroup('premium')
+    ->forStorage(ChatHistoryStorage::class)
+    ->filter(fn($identity) => $identity->getChatName() !== 'archived')
+    ->each(function ($identity, $agent) {
+        // Process matching identities
+    });
+```
+
+### Query Methods
+
+```php
+// Count matching identities
+$totalChats = Context::of(SupportAgent::class)->count();
+
+$userChats = Context::of(SupportAgent::class)
+    ->forUser('user-123')
+    ->count();
+
+// Check if any identities exist
+$hasChats = Context::of(SupportAgent::class)
+    ->forUser('user-123')
+    ->exists();
+
+// Get first matching identity
+$identity = Context::of(SupportAgent::class)
+    ->forUser('user-123')
+    ->first();
+
+if ($identity) {
+    echo $identity->getChatName();
+    echo $identity->getUserId();
+    echo $identity->getGroup();
+}
+
+// Get first matching identity as an agent instance
+$agent = Context::of(SupportAgent::class)
+    ->forUser('user-123')
+    ->firstAgent();
+
+if ($agent) {
+    $response = $agent->respond('Hello!');
+}
+
+// Get all matching identities as array
+$identities = Context::of(SupportAgent::class)
+    ->forUser('user-123')
+    ->all();
+
+// Get as SessionIdentityArray collection
+$identities = Context::of(SupportAgent::class)
+    ->forUser('user-123')
+    ->getIdentities();
+
+// Get chat-specific identities
+$chatIdentities = Context::of(SupportAgent::class)
+    ->getChatIdentities();
+
+// Get storage keys
+$keys = Context::of(SupportAgent::class)->getStorageKeys();
+$chatKeys = Context::of(SupportAgent::class)->getChatKeys();
+```
+
+### Iteration Methods
+
+With `of()`, callbacks receive both the identity and the agent instance:
+
+```php
+// Iterate with each()
+Context::of(SupportAgent::class)
+    ->forUser('user-123')
+    ->each(function ($identity, $agent) {
+        echo "Chat: " . $identity->getChatName();
+        // $agent is a fully initialized agent instance
+        $messages = $agent->getMessages();
+    });
+
+// Map and collect results
+$results = Context::of(SupportAgent::class)
+    ->forUser('user-123')
+    ->map(function ($identity, $agent) {
+        return [
+            'chat' => $identity->getChatName(),
+            'messageCount' => count($agent->getMessages()),
+        ];
+    });
+```
+
+### Action Methods
+
+```php
+// Clear data from matching storages (keys remain tracked)
+Context::of(SupportAgent::class)
+    ->forUser('user-123')
+    ->forStorage(ChatHistoryStorage::class)
+    ->clear();
+
+// Remove storages entirely (data and tracking keys removed)
+Context::of(SupportAgent::class)
+    ->forUser('user-123')
+    ->forStorage(ChatHistoryStorage::class)
+    ->remove();
+
+// Clear all chat histories (chainable)
+Context::of(SupportAgent::class)
+    ->clearAllChats()
+    ->removeAllChats();
+
+// Shorthand methods for user-specific operations
+Context::of(SupportAgent::class)
+    ->clearAllChatsByUser('user-123');
+
+Context::of(SupportAgent::class)
+    ->removeAllChatsByUser('user-123');
+```
+
+---
+
+## Using `Context::named()`
+
+The `named()` method creates a `NamedContextManager` using just an agent name string. This lightweight approach doesn't initialize any agent class—it only works with identities and requires explicit driver configuration.
+
+```php
+use LarAgent\Facades\Context;
+use LarAgent\Context\Drivers\CacheStorage;
+
+Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->clearAllChats();
+```
+
+<Tip>
+Use `named()` for administrative tasks, cleanup scripts, operations outside agent context, or when you don't need agent functionality.
+</Tip>
+
+### Driver Configuration
+
+Since `named()` doesn't have access to agent configuration, you must specify drivers explicitly:
+
+```php
+use LarAgent\Context\Drivers\CacheStorage;
+use LarAgent\Context\Drivers\FileStorage;
+
+// Single driver
+Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->clearAllChats();
+
+// Multiple drivers
+Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class, FileStorage::class])
+    ->clearAllChats();
+```
+
+<Note>
+If `withDrivers()` is not called, the facade will attempt to use the default drivers from your `config/laragent.php` configuration.
+</Note>
+
+### Filter Methods
+
+The same filter methods are available, but callbacks only receive identities:
+
+```php
+// Filter by user
+Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->forUser('user-123')
+    ->clearAllChats();
+
+// Filter by chat
+Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->forChat('support-ticket-456')
+    ->clearAllChats();
+
+// Filter by group
+Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->forGroup('premium')
+    ->each(function ($identity) {
+        // Only identity available, no agent
+    });
+
+// Custom filter
+Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->filter(fn($identity) => $identity->getUserId() !== null)
+    ->count();
+```
+
+### Query Methods
+
+```php
+// Count
+$count = Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->count();
+
+// Check existence
+$exists = Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->forUser('user-123')
+    ->exists();
+
+// Check if empty (opposite of exists)
+$isEmpty = Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->forUser('user-123')
+    ->isEmpty();
+
+// Get first identity
+$identity = Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->first();
+
+// Get last identity
+$lastIdentity = Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->last();
+
+// Get all identities
+$identities = Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->all();
+```
+
+<Tip>
+After you get needed identity, you can initialize agent instances with it using `fromIdentity()` method: `supportAgent::fromIdentity($identity)`.
+</Tip>
+
+### Iteration Methods
+
+With `named()`, callbacks only receive the identity (no agent instance):
+
+```php
+// Iterate with each()
+Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->forUser('user-123')
+    ->each(function ($identity) {
+        echo "Chat: " . $identity->getChatName();
+        // No agent available
+    });
+
+// Map and collect
+$chatNames = Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->map(fn($identity) => $identity->getChatName());
+```
+
+### Action Methods
+
+Action methods return counts instead of being chainable:
+
+```php
+// Clear all chats - returns count
+$clearedCount = Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->clearAllChats();
+
+echo "Cleared $clearedCount chats";
+
+// Remove all chats - returns count
+$removedCount = Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->forUser('user-123')
+    ->removeAllChats();
+
+// Clear all storages
+$count = Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->clearAll();
+
+// Remove all storage entries
+$count = Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->removeAll();
+```
+
+### Additional Methods
+
+```php
+// Get agent name
+$manager = Context::named('SupportAgent');
+echo $manager->getAgentName(); // "SupportAgent"
+
+// Get drivers configuration
+$manager = Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class]);
+$drivers = $manager->getDriversConfig();
+
+// Access underlying Context instance
+$context = Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->context();
+```
+
+---
+
+## Filter Immutability
+
+Filters create new instances, leaving the original unchanged. This allows building reusable query bases:
+
+```php
+$base = Context::of(SupportAgent::class);
+$filtered = $base->forUser('user-123');
+
+// $base still has no filters
+echo $base->count();      // All identities
+echo $filtered->count();  // Only user-123's identities
+
+// Build reusable bases
+$premiumBase = Context::of(SupportAgent::class)->forGroup('premium');
+
+$premiumUser1 = $premiumBase->forUser('user-1')->count();
+$premiumUser2 = $premiumBase->forUser('user-2')->count();
+$allPremium = $premiumBase->count();
+```
+
+---
+
+## Common Use Cases
+
+<AccordionGroup>
+<Accordion title="Admin Dashboard - Clear Old Chats">
+```php
+// Using named() for admin tool (no agent class needed)
+$cleared = Context::named('SupportAgent')
+    ->withDrivers([CacheStorage::class])
+    ->filter(function ($identity) {
+        // Add your date/condition logic here
+        return true;
+    })
+    ->clearAllChats();
+
+Log::info("Cleared $cleared old chat sessions");
+```
+</Accordion>
+
+<Accordion title="User Account Deletion">
+```php
+// Using of() to remove all user data across agents
+Context::of(SupportAgent::class)
+    ->forUser($userId)
+    ->removeAllChats();
+
+Context::of(BillingAgent::class)
+    ->forUser($userId)
+    ->removeAllChats();
+```
+</Accordion>
+
+<Accordion title="Export User Chat History">
+```php
+$exports = Context::of(SupportAgent::class)
+    ->forUser($userId)
+    ->map(function ($identity, $agent) {
+        return [
+            'chat_name' => $identity->getChatName(),
+            'messages' => $agent->getMessages(),
+            'created_at' => $identity->getKey(),
+        ];
+    });
+```
+</Accordion>
+
+<Accordion title="Check Active Sessions">
+```php
+$hasActiveSessions = Context::of(SupportAgent::class)
+    ->forUser($userId)
+    ->forGroup('active')
+    ->exists();
+
+if ($hasActiveSessions) {
+    // User has active chat sessions
+}
+```
+</Accordion>
+
+<Accordion title="Batch Process Premium Users">
+```php
+Context::of(SupportAgent::class)
+    ->forGroup('premium')
+    ->each(function ($identity, $agent) {
+        // Apply premium processing to each chat
+        $agent->addTool(new PremiumSupportTool());
+    });
+```
+</Accordion>
+</AccordionGroup>
+
+## Method Reference
+
+### Filter Methods (Both Managers)
+
+| Method | Description |
+|--------|-------------|
+| `forUser(string $userId)` | Filter by user ID |
+| `forChat(string $chatName)` | Filter by chat/session name |
+| `forGroup(string $group)` | Filter by group |
+| `forStorage(string $storageClass)` | Filter by storage type |
+| `filter(callable $callback)` | Custom filter callback |
+
+### Query Methods (Both Managers)
+
+| Method | Description |
+|--------|-------------|
+| `count()` | Count matching identities |
+| `exists()` | Check if any match |
+| `first()` | Get first matching identity |
+| `all()` | Get all as array |
+| `getIdentities()` | Get as `SessionIdentityArray` |
+
+### ContextManager Only
+
+| Method | Description |
+|--------|-------------|
+| `firstAgent()` | Get first match as agent instance |
+| `clear()` | Clear data (keep keys) |
+| `remove()` | Remove entirely |
+| `clearAllChatsByUser()` | Clear user's chat history |
+| `removeAllChatsByUser()` | Remove user's chat history |
+
+### NamedContextManager Only
+
+| Method | Description |
+|--------|-------------|
+| `withDrivers(array $drivers)` | Set driver configuration |
+| `isEmpty()` | Check if no matches |
+| `last()` | Get last matching identity |
+| `clearAll()` | Clear all storages (returns count) |
+| `removeAll()` | Remove all entries (returns count) |
+| `getAgentName()` | Get agent name string |
+| `context()` | Get underlying Context instance |

@@ -18,7 +18,7 @@
         "version": "1.x",
         "tabs": [
           {
-            "tab": "Documentation",
+            "tab": "Usage",
             "groups": [
               {
                 "group": "Get Started",
@@ -36,6 +36,7 @@
                   "v1/agents/structured-output",
                   "v1/agents/streaming",
                   "v1/agents/storage",
+                  "v1/agents/rag",
                   "v1/agents/llm-drivers",
                   "v1/agents/agent-via-api"
                 ]

@@ -46,3 +46,5 @@ Install our Github App to auto propagate changes from your repo to your deployme
 - Add other section in menu and add Events & Hooks page pointing to the extensibility tab where we will have all details and guides around events. Move context and identity storage events from v1/context/overview.mdx to there
 
 - Where to put All commands page?
+
+- Merge old events and hooks pages as Agent hooks, move event setup guide in extensibility tab and add one page per events type
