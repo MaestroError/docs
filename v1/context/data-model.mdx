@@ -1,0 +1,359 @@
+---
+title: "Data Model"
+description: "Create structured data objects with automatic validation, serialization, and OpenAPI schema generation"
+---
+
+The `DataModel` system in LarAgent provides a robust foundation for handling structured data. 
+
+It ensures strict typing, automatic validation, serialization, and OpenAPI schema generation - flexible enough for simple DTOs while powerful enough for complex, nested, and polymorphic data structures.
+
+Used in storage, tool arguments and structured output with LLMs, the `DataModel` system is a core part of LarAgent's architecture.
+
+## Core Features
+
+All data models extend the `LarAgent\Core\Abstractions\DataModel` abstract class, which provides:
+
+<CardGroup cols={2}>
+<Card title="Automatic Hydration" icon="droplet">
+  Populate objects from arrays using `fill()` or `fromArray()`
+</Card>
+
+<Card title="Schema Generation" icon="diagram-project">
+  Automatically generate OpenAPI/JSON Schemas using PHP types and attributes
+</Card>
+
+<Card title="Serialization" icon="arrows-rotate">
+  Convert objects back to arrays or JSON
+</Card>
+
+<Card title="Performance" icon="bolt">
+  Uses static runtime caching to minimize Reflection overhead
+</Card>
+</CardGroup>
+
+## Basic Usage
+
+When creating a DataModel for use with LLMs (structured output or tool arguments), use the `#[Desc]` attribute to provide context that helps the AI understand the purpose and expected format of each field.
+
+<Tabs>
+
+<Tab title="Without Property Promotion">
+```php
+use LarAgent\Core\Abstractions\DataModel;
+use LarAgent\Attributes\Desc;
+
+class SearchQuery extends DataModel
+{
+    #[Desc('The search term to look for')]
+    public string $query;
+
+    #[Desc('The maximum number of results to return')]
+    public int $limit = 10;
+}
+```
+</Tab>
+
+<Tab title="With Property Promotion">
+```php
+use LarAgent\Core\Abstractions\DataModel;
+use LarAgent\Attributes\Desc;
+
+class SearchQuery extends DataModel
+{
+    public function __construct(
+        #[Desc('The search term to look for')]
+        public string $query,
+
+        #[Desc('The maximum number of results to return')]
+        public int $limit = 10,
+    ) {}
+}
+```
+</Tab>
+
+</Tabs>
+
+```php
+// Create from array
+$query = SearchQuery::fromArray([
+    'query' => 'Laravel AI agents',
+    'limit' => 5
+]);
+
+echo $query->query; // 'Laravel AI agents'
+
+// Generate JSON schema automatically
+$schema = $query->toSchema();
+```
+
+<Note>
+Even when you don't need LLM integration, you can still use `DataModel` instead of a plain DTO to benefit from the built-in `fromArray()` and `toArray()` methods.
+</Note>
+
+
+
+## DTO-Style Data Models
+
+For simple data transfer objects that don't need schema generation, you can use a lightweight DTO approach:
+
+<Tip>
+It's good practice to override `fromArray()` and `toArray()` methods for DataModels that are heavily used. Static method resolution is faster than the dynamic reflection-based approach used by default, which can make a significant difference at scale.
+</Tip>
+
+```php
+use LarAgent\Core\Abstractions\DataModel;
+
+class SessionIdentity extends DataModel
+{
+    public function __construct(
+        public readonly string $agentName,
+        public readonly ?string $chatKey = null,
+        public readonly ?string $userId = null,
+        public readonly ?string $group = null
+    ) {}
+
+    public static function fromArray(array $data): self
+    {
+        return new self(
+            agentName: $data['agentName'],
+            chatKey: $data['chatKey'] ?? '',
+            userId: $data['userId'] ?? '',
+            group: $data['group'] ?? ''
+        );
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'agentName' => $this->agentName,
+            'chatKey' => $this->chatKey,
+            'userId' => $this->userId,
+            'group' => $this->group,
+        ];
+    }
+}
+```
+
+## Nested Data Models
+
+DataModels can contain other DataModels as properties, enabling you to build complex, hierarchical data structures. Nested models are automatically hydrated when using `fromArray()` and properly serialized with `toArray()`.
+
+```php
+use LarAgent\Core\Abstractions\DataModel;
+use LarAgent\Attributes\Desc;
+
+class ImageContent extends DataModel
+{
+    #[Desc('The type of the content')]
+    public string $type = 'image_url';
+
+    #[Desc('The image URL information')]
+    public ImageUrl $image_url;
+}
+
+// Nested DataModel
+class ImageUrl extends DataModel
+{
+    #[Desc('The URL of the image')]
+    public string $url;
+
+    #[Desc('The detail level for image processing')]
+    public string $detail = 'auto';
+}
+```
+
+```php
+// Nested hydration works automatically
+$content = ImageContent::fromArray([
+    'type' => 'image_url',
+    'image_url' => [
+        'url' => 'https://example.com/image.png',
+        'detail' => 'high'
+    ]
+]);
+
+echo $content->image_url->url; // 'https://example.com/image.png'
+```
+
+## Polymorphic Arrays
+
+To handle lists of different model types (e.g., a message containing both text and images), extend `DataModelArray`.
+
+DataModelArray allows you to define a set of allowed models and a discriminator field to determine which model to instantiate for each item in the array.
+
+It's like a collection, but strictly typed to only allow specific DataModels based on a discriminator field.
+
+```php
+use LarAgent\Core\Abstractions\DataModelArray;
+
+class MessageContent extends DataModelArray
+{
+    // Define allowed types and their mapping
+    public static function allowedModels(): array
+    {
+        return [
+            'text' => TextContent::class,
+            'image_url' => ImageContent::class,
+        ];
+    }
+
+    // Define the field used to distinguish types (default is 'type')
+    public function discriminator(): string
+    {
+        return 'type';
+    }
+}
+```
+
+You can instantiate polymorphic arrays in multiple ways:
+
+```php
+// From array
+$content = new MessageContent([
+    ['type' => 'text', 'text' => 'Hello'],
+    ['type' => 'image_url', 'image_url' => ['url' => 'https://example.com/img.png']]
+]);
+
+// Or using variadic objects
+$content = new MessageContent(
+    new TextContent(['text' => 'Hello']),
+    new ImageContent(['image_url' => ['url' => 'https://example.com/img.png']])
+);
+```
+
+### Differentiation
+
+Sometime one discriminator field is not enough to differentiate between multiple models. In such cases, you can override the `matchesArray()` method in DataModel.
+
+For example, in a chat message array where both `AssistantMessage` and `ToolCallMessage` share the same `role` value of `assistant`, you can implement custom logic in `matchesArray` to check for the presence of specific fields:
+
+```php
+class MessageArray extends DataModelArray
+{
+    public static function allowedModels(): array
+    {
+        return [
+            'user' => UserMessage::class,
+            'system' => SystemMessage::class,
+            'developer' => DeveloperMessage::class,
+            'tool' => ToolResultMessage::class,
+            'assistant' => [
+                ToolCallMessage::class,  // Check first (has specific condition via matchesArray)
+                AssistantMessage::class, // Default fallback
+            ],
+        ];
+    }
+
+    public function discriminator(): string
+    {
+        return 'role';
+    }
+}
+```
+
+In `ToolCallMessage` & `AssistantMessage`, you can implement custom logic:
+
+```php ToolCallMessage.php
+
+    // ...
+
+    /**
+     * Check if array data matches ToolCallMessage (has tool_calls).
+     */
+    public static function matchesArray(array $data): bool
+    {
+        return ! empty($data['tool_calls']);
+    }
+
+```
+
+```php AssistantMessage.php
+
+    // ...
+
+    /**
+     * Check if array data matches AssistantMessage (no tool_calls).
+     */
+    public static function matchesArray(array $data): bool
+    {
+        return empty($data['tool_calls']);
+    }
+
+```
+
+Where the $data is the raw array being hydrated. This allows you to implement any complex differentiation logic based on the presence/absence or value of certain fields.
+
+## Performance Optimization
+
+The `DataModel` class uses **Reflection** to inspect properties and types. While LarAgent implements **static runtime caching** to mitigate the cost, Reflection is still slower than native code.
+
+<Note>
+You are **not required** to override `fromArray()` or `toArray()` methods. The base implementation works perfectly for 90% of use cases.
+</Note>
+
+### When to Override
+
+Override `fromArray()` and `toArray()` **only if**:
+
+1. The model is instantiated frequently (thousands of times in a loop)
+2. The model is part of a core hot path (like `MessageContent` in a streaming response)
+3. You need custom transformation logic that standard casting doesn't support
+
+### Performance-Optimized Example
+
+
+<Warning>
+Premature optimization can make your code harder to maintain. Start with the default implementation and optimize only when necessary.
+</Warning>
+
+```php
+use LarAgent\Core\Abstractions\DataModel;
+use LarAgent\Attributes\Desc;
+
+class ImageContent extends DataModel
+{
+    #[Desc('The type of the content')]
+    public string $type = 'image_url';
+
+    #[Desc('The image URL information')]
+    public ImageUrl $image_url;
+
+    // Override for performance (bypasses Reflection)
+    public function toArray(): array
+    {
+        return [
+            'type' => $this->type,
+            'image_url' => $this->image_url->toArray(),
+        ];
+    }
+
+    // Override for performance
+    public static function fromArray(array $attributes): static
+    {
+        $instance = new static();
+        
+        if (isset($attributes['type'])) {
+            $instance->type = $attributes['type'];
+        }
+        
+        if (isset($attributes['image_url'])) {
+            // Handle nested hydration manually
+            $instance->image_url = is_array($attributes['image_url'])
+                ? ImageUrl::fromArray($attributes['image_url'])
+                : $attributes['image_url'];
+        }
+        
+        return $instance;
+    }
+}
+```
+
+## Summary
+
+| Approach | Use Case | Description Required |
+|----------|----------|---------------------|
+| Property Promotion | Simple DTOs | No |
+| Public Properties | API mapping | Recommended |
+| With `#[Desc]` | LLM interactions | Yes |
+| Custom `fromArray`/`toArray` | High-performance paths | Optional |
+| `DataModelArray` | Polymorphic collections | Depends on contents |
