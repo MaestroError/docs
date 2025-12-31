@@ -35,16 +35,6 @@ Install our Github App to auto propagate changes from your repo to your deployme
 
 - Add tab for extensibility, including custom driver, storage and other creation flows (Like guides, but separate) and reference link in main doc pages
 
-- review merged inline and class tools doc page: v1/tools/other-tools.mdx +
+- Where to put All commands page? (DevTools tab?)
 
-- Update MCP with mcp_tool_caching https://github.com/MaestroError/LarAgent/pull/105 +
-
-- Context pages + RAG
-    - Maybe we should add truncation and usage tracking inside chat history page? Try it, check the size
-        - Trancation in history, usage separately
-
-- Add other section in menu and add Events & Hooks page pointing to the extensibility tab where we will have all details and guides around events. Move context and identity storage events from v1/context/overview.mdx to there
-
-- Where to put All commands page?
-
-- Merge old events and hooks pages as Agent hooks, move event setup guide in extensibility tab and add one page per events type
+- Merge old events and hooks pages as Agent hooks, move event setup guide in extensibility tab and add one page per events type. Move context and identity storage events from v1/context/overview.mdx to there
