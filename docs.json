@@ -32,31 +32,39 @@
                 "pages": [
                   "v1/agents/overview",
                   "v1/agents/creation",
-                  "v1/agents/responses",
-                  "v1/agents/structured-output",
-                  "v1/agents/streaming",
-                  "v1/agents/storage",
-                  "v1/agents/rag",
                   "v1/agents/llm-drivers",
-                  "v1/agents/agent-via-api",
-                  "v1/agents/hooks"
+                  {
+                    "group": "Responses",
+                    "expanded": true,
+                    "pages": [
+                      "v1/responses/overview",
+                      "v1/responses/structured-output",
+                      "v1/responses/streaming"
+                    ]
+                  },
+                  {
+                    "group": "Tools & MCP",
+                    "expanded": false,
+                    "pages": [
+                      "v1/tools/overview",
+                      "v1/tools/attribute-tools",
+                      "v1/tools/mcp",
+                      "v1/tools/other-tools",
+                      "v1/tools/configuration",
+                      "v1/tools/phantom-tools"
+                    ]
+                  },
+                  "v1/agents/rag",
+                  "v1/agents/hooks",
+                  "v1/agents/agent-via-api"
                 ]
               },
               {
-                "group": "Tools",
-                "pages": [
-                  "v1/tools/overview",
-                  "v1/tools/attribute-tools",
-                  "v1/tools/mcp",
-                  "v1/tools/other-tools",
-                  "v1/tools/configuration",
-                  "v1/tools/phantom-tools"
-                ]
-              },
-              {
-                "group": "Context",
+                "group": "Context (Storage)",
+                "expanded": false,
                 "pages": [
                   "v1/context/overview",
+                  "v1/context/identity",
                   "v1/context/storage-drivers",
                   "v1/context/history",
                   "v1/context/usage-tracking",
