@@ -1,0 +1,281 @@
+---
+title: "Agent Hooks"
+description: "Learn how to use lifecycle events and engine hooks to customize agent behavior"
+---
+
+LarAgent provides a comprehensive hook system that allows you to intercept and customize behavior at various stages of the agent's lifecycle and conversation flow.
+
+<Info>
+LarAgent also dispatches **Laravel events** for all hook points, providing more flexibility for cross-cutting concerns like logging and analytics. See the [Event Setup Guide](/v1/customization/events/setup) and [Agent Events](/v1/customization/events/agent) for details.
+</Info>
+
+## Lifecycle Hooks
+
+Lifecycle hooks focus on the agent's initialization, conversation flow, and termination. They are perfect for setting up agent-specific configurations, handling conversation state, and managing cleanup operations.
+
+### onInitialize
+
+Called when the agent is fully initialized. Use this to set up initial state or configurations.
+
+```php
+protected function onInitialize()
+{
+    if (auth()->check() && auth()->user()->prefersCreative()) {
+        $this->temperature(1.4);
+    }
+}
+```
+
+### onConversationStart
+
+Triggered at the beginning of each `respond` method call. Use this to prepare conversation-specific resources or logging.
+
+```php
+protected function onConversationStart()
+{
+    Log::info('Starting new conversation', [
+        'agent' => self::class,
+        'message' => $this->currentMessage()
+    ]);
+}
+```
+
+### onConversationEnd
+
+Called at the end of each `respond` method. For streaming, it runs when the last chunk is received.
+
+```php
+/** @param MessageInterface|array|null $message */
+protected function onConversationEnd($message)
+{
+    $this->clear();
+    DB::table('chat_histories')->insert([
+        'chat_session_id' => $this->chatHistory()->getIdentifier(),
+        'message' => $message,
+    ]);
+}
+```
+
+### onToolChange
+
+Triggered when a tool is added to or removed from the agent.
+
+```php
+/**
+ * @param ToolInterface $tool
+ * @param bool $added
+ */
+protected function onToolChange($tool, $added = true)
+{
+    if ($added && $tool->getName() == 'my_tool') {
+        $newMetaData = ['using_in' => self::class, ...$tool->getMetaData()];
+        $tool->setMetaData($newMetaData);
+    }
+}
+```
+
+### onClear
+
+Triggered before the agent's chat history is cleared.
+
+```php
+protected function onClear()
+{
+    file_put_contents('backup.json', json_encode($this->chatHistory()->toArrayWithMeta()));
+}
+```
+
+### onTerminate
+
+Called when the agent is being terminated. Ideal for final cleanup or saving state.
+
+```php
+protected function onTerminate()
+{
+    Log::info('Agent terminated successfully');
+}
+```
+
+### onEngineError
+
+Called when the provider fails to process a request, before trying the fallback provider.
+
+```php
+protected function onEngineError(\Throwable $th)
+{
+    Log::info('Provider failed', ['error' => $th->getMessage()]);
+}
+```
+
+## Engine Hooks
+
+Engine hooks provide fine-grained control over the conversation processing pipeline, allowing you to intercept and modify behavior at crucial points.
+
+<Note>
+Each engine hook returns a boolean value where `true` allows the operation to proceed and `false` prevents it. Prefer throwing exceptions with clear messages instead of returning `false`, since returning `false` silently stops execution.
+</Note>
+
+### beforeReinjectingInstructions
+
+Called before the engine reinjects system instructions into the chat history.
+
+<Info>
+Instructions are always injected at the beginning of the chat history. The `$reinjectInstructionsPer` property defines when to reinject instructions again. By default, it is set to `0` (disabled).
+</Info>
+
+```php
+/**
+ * @param ChatHistoryInterface $chatHistory
+ * @return bool
+ */
+protected function beforeReinjectingInstructions($chatHistory)
+{
+    if ($chatHistory->count() > 1000) {
+        $this->instructions = view("agents/new_instructions", ['user' => auth()->user()])->render();
+    }
+    return true;
+}
+```
+
+### beforeSend & afterSend
+
+Called before and after a message is added to the chat history.
+
+```php
+/**
+ * @param ChatHistoryInterface $history
+ * @param MessageInterface|null $message
+ * @return bool
+ */
+protected function beforeSend($history, $message)
+{
+    if ($message && Checker::containsSensitiveData($message->getContent())) {
+        throw new \Exception("Message contains sensitive data");
+    }
+    return true;
+}
+
+protected function afterSend($history, $message)
+{
+    Log::info('Message sent', [
+        'session' => $history->getIdentifier(),
+        'content_length' => Tokenizer::count($message->getContent())
+    ]);
+    return true;
+}
+```
+
+### beforeSaveHistory
+
+Triggered before the chat history is saved.
+
+```php
+protected function beforeSaveHistory($history)
+{
+    $updatedMeta = [
+        'saved_at' => now()->timestamp,
+        'message_count' => $history->count(),
+        ...$history->getMetadata()
+    ];
+    $history->getLastMessage()->setMetadata($updatedMeta);
+    return true;
+}
+```
+
+### beforeResponse & afterResponse
+
+Called before sending a message to the LLM and after receiving its response.
+
+```php
+/**
+ * @param ChatHistoryInterface $history
+ * @param MessageInterface|null $message
+ */
+protected function beforeResponse($history, $message)
+{
+    if ($message) {
+        Log::info('User message: ' . $message->getContent());
+    }
+    return true;
+}
+
+/**
+ * @param MessageInterface $message
+ */
+protected function afterResponse($message)
+{
+    if (is_array($message->getContent())) {
+        Log::info('Structured response received');
+    }
+    return true;
+}
+```
+
+### beforeToolExecution & afterToolExecution
+
+Triggered before and after a tool is executed.
+
+```php
+/**
+ * @param ToolInterface $tool
+ * @param ToolCallInterface $toolCall
+ * @return bool
+ */
+protected function beforeToolExecution($tool, $toolCall)
+{
+    if (!$this->hasToolPermission($tool->getName())) {
+        Log::warning("Unauthorized tool execution attempt: {$tool->getName()}");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @param ToolInterface $tool
+ * @param ToolCallInterface $toolCall
+ * @param mixed &$result
+ * @return bool
+ */
+protected function afterToolExecution($tool, $toolCall, &$result)
+{
+    if (is_array($result)) {
+        $result = array_map(fn($item) => trim($item), $result);
+    }
+    return true;
+}
+```
+
+### beforeStructuredOutput
+
+Called before processing structured output.
+
+```php
+protected function beforeStructuredOutput(array &$response)
+{
+    if (!$this->checkArrayContent($response)) {
+        return false;
+    }
+    $response['timestamp'] = now()->timestamp;
+    return true;
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+<Card title="Keep hooks focused" icon="bullseye">
+Each hook - single responsibility.
+</Card>
+
+<Card title="Use exceptions for errors" icon="triangle-exclamation">
+Throw exceptions with clear messages instead of silently returning `false`.
+</Card>
+
+<Card title="Consider performance" icon="gauge-high">
+Avoid heavy processing in hooks that run frequently.
+</Card>
+
+<Card title="Handle references carefully" icon="code">
+When modifying referenced parameters (like `&$result`), understand the implications.
+</Card>
+</CardGroup>

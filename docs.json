@@ -38,7 +38,8 @@
                   "v1/agents/storage",
                   "v1/agents/rag",
                   "v1/agents/llm-drivers",
-                  "v1/agents/agent-via-api"
+                  "v1/agents/agent-via-api",
+                  "v1/agents/hooks"
                 ]
               },
               {
@@ -71,6 +72,10 @@
               {
                 "group": "Events",
                 "pages": [
+                  "v1/customization/events/setup",
+                  "v1/customization/events/agent",
+                  "v1/customization/events/context",
+                  "v1/customization/events/identity",
                   "v1/customization/events/history"
                 ]
               },

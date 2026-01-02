@@ -1,0 +1,167 @@
+---
+title: "Event Setup Guide"
+description: "Learn how to listen to and handle LarAgent events in your Laravel application"
+---
+
+LarAgent dispatches Laravel events at key points during agent execution. This allows you to hook into the agent lifecycle using Laravel's native event system for logging, monitoring, analytics, and more.
+
+## Quickstart
+
+<Steps>
+<Step title="Create a listener">
+```bash
+php artisan make:listener AgentListener
+```
+</Step>
+
+<Step title="Import the event and implement the handler">
+```php
+namespace App\Listeners;
+
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\InteractsWithQueue;
+use LarAgent\Events\AgentInitialized;
+
+class AgentListener
+{
+    public function __construct()
+    {
+        //
+    }
+
+    public function handle(AgentInitialized $event): void
+    {
+        // Access the agent DTO
+        dd('Agent has been initialized:', $event->agentDto);
+    }
+}
+```
+</Step>
+
+<Step title="Register the event listener">
+Open `app/Providers/AppServiceProvider.php` and register the event with its listener:
+
+```php
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Event;
+use LarAgent\Events\AgentInitialized;
+use App\Listeners\AgentListener;
+
+class AppServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        //
+    }
+
+    public function boot(): void
+    {
+        Event::listen(
+            AgentInitialized::class,
+            AgentListener::class
+        );
+    }
+}
+```
+</Step>
+</Steps>
+
+Now whenever an agent is initialized, your `handle` method will be executed.
+
+## AgentDTO Structure
+
+<Info>
+Each event that includes `agentDto` uses the following Data Transfer Object structure:
+</Info>
+
+```php
+namespace LarAgent\Core\DTO;
+
+class AgentDTO
+{
+    public function __construct(
+        public readonly string $provider,
+        public readonly string $providerName,
+        public readonly ?string $message,
+        public readonly array $tools = [],
+        public readonly ?string $instructions = null,
+        public readonly ?array $responseSchema = [],
+        public readonly array $configuration = []
+    ) {}
+
+    public function toArray(): array
+    {
+        return [
+            'provider' => $this->provider,
+            'providerName' => $this->providerName,
+            'message' => $this->message,
+            'tools' => $this->tools,
+            'instructions' => $this->instructions,
+            'responseSchema' => $this->responseSchema,
+            'configuration' => $this->configuration,
+        ];
+    }
+}
+```
+
+## Available Events
+
+LarAgent provides events across different categories:
+
+<CardGroup cols={3}>
+<Card title="Agent Events" icon="robot" href="/v1/customization/events/agent">
+Lifecycle events for agent initialization, conversation flow, and termination.
+</Card>
+
+<Card title="Context Events" icon="database" href="/v1/customization/events/context">
+Events for context storage operations and state changes.
+</Card>
+
+<Card title="History Events" icon="clock-rotate-left" href="/v1/customization/events/history">
+Events for chat history operations and message handling.
+</Card>
+</CardGroup>
+
+## Events vs Agent Hooks
+
+LarAgent provides two ways to customize behavior:
+
+| Feature | Agent Hooks | Laravel Events |
+|---------|-------------|----------------|
+| **Definition** | Override methods in agent class | Separate listener classes |
+| **Scope** | Single agent class | Application-wide |
+| **Async support** | No | Yes (via queues) |
+| **Modify behavior** | Can return `false` to halt | Observe only |
+| **Use case** | Agent-specific logic | Cross-cutting concerns |
+
+<Tip>
+Use **agent hooks** for agent-specific customizations that need to modify behavior. Use **Laravel events** for logging, monitoring, analytics, and other cross-cutting concerns that should be decoupled from your agent classes.
+</Tip>
+
+## Queueable Listeners
+
+For heavy processing, implement `ShouldQueue` to handle events asynchronously:
+
+```php
+namespace App\Listeners;
+
+use Illuminate\Contracts\Queue\ShouldQueue;
+use LarAgent\Events\ConversationEnded;
+
+class LogConversationMetrics implements ShouldQueue
+{
+    public function handle(ConversationEnded $event): void
+    {
+        // This runs in the background
+        $metrics = [
+            'provider' => $event->agentDto->provider,
+            'tools_used' => count($event->agentDto->tools),
+            'response_length' => strlen($event->message?->getContent() ?? ''),
+        ];
+        
+        Analytics::track('conversation_completed', $metrics);
+    }
+}
+```

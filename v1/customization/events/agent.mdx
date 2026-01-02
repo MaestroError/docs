@@ -1,0 +1,260 @@
+---
+title: "Agent Events"
+description: "Events dispatched during agent lifecycle and conversation flow"
+---
+
+Agent events track the main lifecycle stages of an agent conversation, from initialization through tool execution to termination.
+
+<Note>
+This page documents Laravel events that LarAgent dispatches. For in-class hooks that can modify agent behavior, see [Agent Hooks](/v1/agents/hooks).
+</Note>
+
+## Lifecycle Events
+
+### AgentInitialized
+
+Dispatched when the agent completes its initialization process and is ready to handle conversations.
+
+```php
+LarAgent\Events\AgentInitialized
+```
+
+<ParamField body="agentDto" type="AgentDTO" required>
+Complete agent configuration including provider, tools, instructions, and response schema.
+</ParamField>
+
+```php
+public function handle(AgentInitialized $event): void
+{
+    $provider = $event->agentDto->provider;
+    $tools = $event->agentDto->tools;
+}
+```
+
+### ConversationStarted
+
+Dispatched when the `respond()` method begins execution, marking the start of a new conversation turn.
+
+```php
+LarAgent\Events\ConversationStarted
+```
+
+<ParamField body="agentDto" type="AgentDTO" required>
+Current agent configuration at the start of the conversation.
+</ParamField>
+
+```php
+public function handle(ConversationStarted $event): void
+{
+    $message = $event->agentDto->message;
+    // Log conversation start, initialize metrics, etc.
+}
+```
+
+### ConversationEnded
+
+Dispatched when the `respond()` method completes execution.
+
+```php
+LarAgent\Events\ConversationEnded
+```
+
+<ParamField body="agentDto" type="AgentDTO" required>
+Final agent configuration at the end of the conversation.
+</ParamField>
+
+<ParamField body="message" type="MessageInterface|array|null" required>
+The final response message or null if no response was generated.
+</ParamField>
+
+<Tip>
+Message instance includes the token usage data. Use `toArrayWithMeta` to get it as an array.
+</Tip>
+
+```php
+public function handle(ConversationEnded $event): void
+{
+    $response = $event->message;
+    // Log conversation end, calculate metrics, cleanup
+}
+```
+
+### ToolChanged
+
+Dispatched when tools are dynamically added to or removed from the agent during runtime.
+
+```php
+LarAgent\Events\ToolChanged
+```
+
+<ParamField body="agentDto" type="AgentDTO" required>
+Current agent configuration.
+</ParamField>
+
+<ParamField body="tool" type="ToolInterface" required>
+The tool instance that was added or removed.
+</ParamField>
+
+<ParamField body="added" type="boolean" required>
+`true` if the tool was added, `false` if it was removed.
+</ParamField>
+
+```php
+public function handle(ToolChanged $event): void
+{
+    $toolName = $event->tool->getName();
+    $action = $event->added ? 'added' : 'removed';
+}
+```
+
+### AgentCleared
+
+Dispatched when the agent's state is cleared, typically resetting conversation history and context.
+
+```php
+LarAgent\Events\AgentCleared
+```
+
+<ParamField body="agentDto" type="AgentDTO" required>
+Agent configuration at the time of clearing.
+</ParamField>
+
+### EngineError
+
+Dispatched when an error occurs in the LLM engine during processing.
+
+```php
+LarAgent\Events\EngineError
+```
+
+<ParamField body="agentDto" type="AgentDTO" required>
+Agent configuration when the error occurred.
+</ParamField>
+
+<ParamField body="exception" type="Throwable" required>
+The exception that was thrown by the LLM engine.
+</ParamField>
+
+```php
+public function handle(EngineError $event): void
+{
+    $error = $event->exception->getMessage();
+    $provider = $event->agentDto->provider;
+    // Log error, send alerts, implement fallback logic
+}
+```
+
+## Hook Events
+
+These events provide hooks before and after critical operations.
+
+### BeforeReinjectingInstructions
+
+Dispatched before instructions are reinjected into the conversation history.
+
+```php
+LarAgent\Events\BeforeReinjectingInstructions
+```
+
+<ParamField body="agentDto" type="AgentDTO" required>
+Current agent configuration.
+</ParamField>
+
+<ParamField body="chatHistory" type="ChatHistoryInterface" required>
+The chat history interface before instruction reinjection.
+</ParamField>
+
+### BeforeSend / AfterSend
+
+Dispatched before and after adding a message to chat history.
+
+```php
+LarAgent\Events\BeforeSend
+LarAgent\Events\AfterSend
+```
+
+<ParamField body="agentDto" type="AgentDTO" required>
+Current agent configuration.
+</ParamField>
+
+<ParamField body="history" type="ChatHistoryInterface" required>
+The conversation history.
+</ParamField>
+
+<ParamField body="message" type="MessageInterface|null" required>
+The message being sent.
+</ParamField>
+
+### BeforeResponse / AfterResponse
+
+Dispatched before sending to and after receiving from the LLM.
+
+```php
+LarAgent\Events\BeforeResponse
+LarAgent\Events\AfterResponse
+```
+
+<ParamField body="agentDto" type="AgentDTO" required>
+Current agent configuration.
+</ParamField>
+
+<ParamField body="message" type="MessageInterface|null" required>
+The message (user message for Before, LLM response for After).
+</ParamField>
+
+### BeforeToolExecution / AfterToolExecution
+
+Dispatched before and after a tool is executed.
+
+```php
+LarAgent\Events\BeforeToolExecution
+LarAgent\Events\AfterToolExecution
+```
+
+<ParamField body="agentDto" type="AgentDTO" required>
+Current agent configuration.
+</ParamField>
+
+<ParamField body="tool" type="ToolInterface" required>
+The tool instance being executed.
+</ParamField>
+
+<ParamField body="toolCall" type="ToolCallInterface" required>
+The tool call with `getId`, `getToolName`, and `getArguments` methods.
+</ParamField>
+
+<ParamField body="result" type="mixed">
+(AfterToolExecution only) The result returned by the tool.
+</ParamField>
+
+### BeforeSaveHistory
+
+Dispatched before persisting the conversation history to storage.
+
+```php
+LarAgent\Events\BeforeSaveHistory
+```
+
+<ParamField body="agentDto" type="AgentDTO" required>
+Current agent configuration.
+</ParamField>
+
+<ParamField body="history" type="ChatHistoryInterface" required>
+The conversation history about to be saved.
+</ParamField>
+
+### BeforeStructuredOutput
+
+Dispatched before processing structured output from the LLM response.
+
+```php
+LarAgent\Events\BeforeStructuredOutput
+```
+
+<ParamField body="agentDto" type="AgentDTO" required>
+Current agent configuration including the response schema.
+</ParamField>
+
+<ParamField body="response" type="array" required>
+The raw structured response array before processing.
+</ParamField>

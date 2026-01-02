@@ -37,4 +37,7 @@ Install our Github App to auto propagate changes from your repo to your deployme
 
 - Where to put All commands page? (DevTools tab?)
 
-- Merge old events and hooks pages as Agent hooks, move event setup guide in extensibility tab and add one page per events type. Move context and identity storage events from v1/context/overview.mdx to there
+- Merge old events and hooks pages as Agent hooks, +
+    - move event setup guide in extensibility tab and add one page per events type. +
+    - Move context and identity storage events from v1/context/overview.mdx to there
+    - Write event docs similar to Agent event for each events page

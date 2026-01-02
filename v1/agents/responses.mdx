@@ -7,7 +7,7 @@ description: "Learn how to interact with agents, handle responses, and use chain
 
 There are multiple ways to interact with your agent and get responses.
 
-### Using `for()` — Named Sessions
+### Using `for()`: Named Sessions
 
 Use `for()` to specify a chat session identifier. This enables conversation persistence based on your configured history storage:
 
@@ -17,7 +17,7 @@ $response = WeatherAgent::for('weather-chat')->respond('What is the weather like
 
 The session ID creates a unique conversation thread. Use meaningful identifiers like user IDs, ticket numbers, or conversation UUIDs.
 
-### Using `forUser()` — User-Specific Sessions
+### Using `forUser()`: User-Specific Sessions
 
 Pass a Laravel `Authenticatable` object directly to create user-specific sessions:
 
@@ -34,7 +34,7 @@ This automatically uses the user's identifier to create a unique session, making
 Learn more about session management and history storage options in [Context & History](/v1/context/history).
 </Tip>
 
-### Using `ask()` — Quick One-Off
+### Using `ask()`: Quick One-Off
 
 For simple, stateless interactions where you don't need conversation history:
 
@@ -46,7 +46,7 @@ $response = WeatherAgent::ask('What is 2 + 2?');
 `ask()` uses in-memory history that's discarded after the response. Perfect for single-turn interactions.
 </Info>
 
-### Using `make()` — Instance Without Session
+### Using `make()`: Instance Without Session
 
 Create an agent instance without a named session:
 
