@@ -186,19 +186,14 @@
           "icon": "discord"
         },
         {
-          "anchor": "Upgrade to v1.0",
-          "href": "/guides/upgrade-to-v1",
-          "icon": "arrow-up-right-dots"
-        },
-        {
           "anchor": "Blog",
           "href": "https://blog.laragent.ai",
           "icon": "newspaper"
         },
         {
-          "anchor": "Contributing",
-          "href": "/guides/development",
-          "icon": "code-pull-request"
+          "anchor": "Upgrade to v1.0",
+          "href": "/guides/upgrade-to-v1",
+          "icon": "arrow-up-right-dots"
         }
       ]
     }
@@ -209,6 +204,10 @@
   },
   "navbar": {
     "links": [
+      {
+        "label": "Contribution",
+        "href": "/guides/development"
+      },
       {
         "label": "Support",
         "href": "https://github.com/MaestroError/LarAgent/issues"
