@@ -1,0 +1,244 @@
+---
+title: "Classes & Inline Tools"
+description: "Create reusable tool classes for complex functionality or build tools dynamically at runtime using the fluent API."
+---
+
+<Note>
+While the [#[Tool] attribute](/v1/tools/attribute-tools) is recommended for most use cases, Tool Classes and Inline Tools offer additional flexibility for reusable or dynamically generated tools.
+</Note>
+
+## Tool Classes
+
+Tool classes are standalone PHP classes that encapsulate tool logic. They're ideal for:
+
+- Complex tools with extensive logic
+- Tools shared across multiple agents
+- Tools requiring their own dependencies or configuration
+
+### Creating a Tool Class
+
+```php
+namespace App\AiTools;
+
+use LarAgent\Tool;
+
+class WeatherTool extends Tool
+{
+    protected string $name = 'get_weather';
+
+    protected string $description = 'Get the current weather for a location';
+
+    protected array $properties = [
+        'location' => [
+            'type' => 'string',
+            'description' => 'The city and state, e.g. San Francisco, CA',
+        ],
+        'unit' => [
+            'type' => 'string',
+            'description' => 'Temperature unit',
+            'enum' => ['celsius', 'fahrenheit'],
+        ],
+    ];
+
+    protected array $required = ['location'];
+
+    public function execute(array $input): mixed
+    {
+        $location = $input['location'];
+        $unit = $input['unit'] ?? 'celsius';
+
+        return WeatherService::get($location, $unit);
+    }
+}
+```
+
+### Registering Tool Classes
+
+Add tool classes to the `$tools` property in your agent:
+
+```php
+class WeatherAgent extends Agent
+{
+    protected $tools = [
+        \App\Tools\WeatherTool::class,
+        \App\Tools\LocationTool::class,
+    ];
+}
+```
+
+Or register them in the `registerTools()` method by instantiating:
+
+```php
+public function registerTools()
+{
+    return [
+        new \App\AiTools\WeatherTool(),
+        new \App\AiTools\LocationTool(),
+    ];
+}
+```
+
+Or add them at runtime:
+
+```php
+$agent->withTool(WeatherTool::class);
+// or
+$agent->withTool(new WeatherTool());
+```
+
+### Tool Class Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `$name` | `string` | Unique identifier for the tool |
+| `$description` | `string` | Description shown to the LLM |
+| `$properties` | `array` | Parameter definitions with types and descriptions |
+| `$required` | `array` | List of required parameter names |
+| `$metaData` | `array` | Optional metadata (not sent to LLM) |
+
+### Property Definitions
+
+Properties are OpenAPI compatible schemas. Each property in `$properties` can have:
+
+```php
+protected array $properties = [
+    'param_name' => [
+        'type' => 'string',           // string, number, integer, boolean, array, object
+        'description' => 'Help text',
+        'enum' => ['a', 'b', 'c'],    // Optional: restrict to specific values
+    ],
+];
+```
+
+
+---
+
+## Inline Tools
+
+Inline tools are created programmatically using the fluent `Tool` API. They're ideal for:
+
+- Tools that depend on runtime context (user state, request data)
+- Dynamically generated tools based on configuration
+- Quick prototyping before extracting to a class
+
+### Creating Inline Tools
+
+Use the `registerTools()` method in your agent:
+
+```php
+use LarAgent\Tool;
+
+class MyAgent extends Agent
+{
+    public function registerTools()
+    {
+        $user = auth()->user();
+
+        return [
+            Tool::create('get_user_location', "Get the current user's location")
+                ->setCallback(fn() => $user->location->city),
+
+            Tool::create('get_weather', 'Get weather for a location')
+                ->addProperty('location', 'string', 'City name')
+                ->addProperty('unit', 'string', 'Temperature unit', ['celsius', 'fahrenheit'])
+                ->setRequired('location')
+                ->setCallback(fn($location, $unit = 'celsius') => 
+                    WeatherService::get($location, $unit)
+                ),
+        ];
+    }
+}
+```
+
+### Fluent API Reference
+
+```php
+Tool::create(string $name, string $description)
+    ->addProperty(string $name, string $type, string $description, ?array $enum = null)
+    ->setRequired(string|array $properties)
+    ->setCallback(callable $callback);
+```
+
+### Callback Options
+
+The `setCallback()` method accepts any PHP callable, including:
+
+```php
+// Closure
+->setCallback(fn($param) => doSomething($param))
+
+// Function name
+->setCallback('myGlobalFunction')
+
+// Class method (array syntax)
+->setCallback([$this, 'methodName'])
+```
+
+### Runtime Tool Addition
+
+Add inline tools at runtime using `withTool()`:
+
+```php
+$tool = Tool::create('custom_tool', 'Do something custom')
+    ->addProperty('input', 'string', 'The input value')
+    ->setCallback(fn($input) => processInput($input));
+
+$response = MyAgent::for('user-123')
+    ->withTool($tool)
+    ->respond('Use the custom tool');
+```
+
+### Context-Aware Tools Example
+
+```php
+public function registerTools()
+{
+    $user = auth()->user();
+    $tools = [];
+
+    // Always available
+    $tools[] = Tool::create('get_time', 'Get current server time')
+        ->setCallback(fn() => now()->toIso8601String());
+
+    // User-specific tool
+    $tools[] = Tool::create('get_my_orders', 'Get my recent orders')
+        ->addProperty('limit', 'integer', 'Number of orders to return')
+        ->setCallback(fn($limit = 5) => 
+            $user->orders()->latest()->take($limit)->get()->toArray()
+        );
+
+    // Permission-based tool
+    if ($user->can('view_reports')) {
+        $tools[] = Tool::create('get_sales_report', 'Get sales report')
+            ->addProperty('period', 'string', 'Time period', ['day', 'week', 'month'])
+            ->setCallback(fn($period) => ReportService::sales($period));
+    }
+
+    return $tools;
+}
+```
+
+---
+
+## Choosing the Right Approach
+
+| Approach | Best For |
+|----------|----------|
+| **[#[Tool] Attribute](/v1/tools/attribute-tools)** | Most use cases — simple, type-safe, IDE support |
+| **Tool Classes** | Complex, reusable tools with multiple dependencies |
+| **Inline Tools** | Dynamic, context-dependent, or quick prototypes |
+
+<Tip>
+Start with the `#[Tool]` attribute. Use Inline Tools when the tool depends on runtime context.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Attribute Tools" icon="wand-magic-sparkles" href="/v1/tools/attribute-tools">
+    The recommended way to create tools.
+  </Card>
+  <Card title="Tool Configuration" icon="sliders" href="/v1/tools/configuration">
+    Configure tool choice and parallel execution.
+  </Card>
+</CardGroup>

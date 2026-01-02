@@ -1,0 +1,626 @@
+---
+title: "Chat History"
+description: "Configure and manage conversation history storage with flexible drivers and truncation strategies"
+---
+
+The Chat History system in LarAgent stores and manages conversation messages between users and AI agents. It provides automatic persistence, lazy loading, and flexible storage driver configuration.
+
+## Overview
+
+Chat history is managed through the `ChatHistoryStorage` class, which automatically:
+
+- Persists messages across requests
+- Maintains message order
+- Supports multiple storage drivers (cache, file, database, session)
+- Provides lazy loading for performance
+- Tracks dirty state to avoid unnecessary writes
+
+## Configuration
+
+LarAgent provides multiple levels of configuration, from global defaults to per-agent customization.
+
+### Global Configuration
+
+Set default history storage drivers for all agents in `config/laragent.php`:
+
+```php
+// config/laragent.php
+
+return [
+    /**
+     * Default chat history storage drivers
+     * Uses driver chain - first driver is primary, others are fallback
+     */
+    'default_history_storage' => [
+        \LarAgent\Context\Drivers\CacheStorage::class, // Primary
+        \LarAgent\Context\Drivers\FileStorage::class,  // Fallback
+    ],
+];
+```
+
+### Per-Provider Configuration
+
+Configure history storage for specific providers:
+
+```php
+// config/laragent.php
+
+'providers' => [
+    'default' => [
+        'label' => 'openai',
+        'api_key' => env('OPENAI_API_KEY'),
+        'driver' => \LarAgent\Drivers\OpenAi\OpenAiDriver::class,
+        // Provider-specific history storage
+        'history' => [
+            \LarAgent\Context\Drivers\EloquentStorage::class,
+        ],
+    ],
+],
+```
+
+### Per-Agent Configuration
+
+Set storage drivers directly in your agent class using the `$history` property:
+
+<Tabs>
+  <Tab title="Using String Aliases">
+```php
+class SupportAgent extends Agent
+{
+    protected $instructions = 'You are a helpful support agent.';
+    
+    // Use string alias for built-in storage
+    protected $history = 'cache';
+}
+```
+  </Tab>
+  <Tab title="Using Driver Classes">
+```php
+use LarAgent\Context\Drivers\CacheStorage;
+use LarAgent\Context\Drivers\FileStorage;
+
+class SupportAgent extends Agent
+{
+    protected $instructions = 'You are a helpful support agent.';
+    
+    // Single driver or array with fallback chain
+    protected $history = [
+        CacheStorage::class,  // Primary
+        FileStorage::class,   // Fallback
+    ];
+}
+```
+  </Tab>
+  <Tab title="Method Override">
+```php
+class CustomAgent extends Agent
+{
+    protected $instructions = 'You are a custom agent.';
+    
+    protected function historyStorageDrivers(): string|array
+    {
+        return [
+            new EloquentStorage(\App\Models\CustomMessage::class),
+        ];
+    }
+}
+```
+  </Tab>
+</Tabs>
+
+### Available Storage Aliases
+
+| Alias | Driver Class | Description |
+|-------|-------------|-------------|
+| `'in_memory'` | `InMemoryStorage` | No persistence, lost on request end |
+| `'session'` | `SessionStorage` | PHP session storage |
+| `'cache'` | `CacheStorage` | Laravel cache (Redis, Memcached, etc.) |
+| `'file'` or `'json'` | `FileStorage` | JSON files on disk |
+| `'database'` | `EloquentStorage` | Separate row per message |
+| `'database-simple'` | `SimpleEloquentStorage` | JSON column storage |
+
+## Driver Chain (Fallback Pattern)
+
+LarAgent supports configuring multiple drivers in a chain. The first driver is the **primary**, and subsequent drivers serve as **fallbacks**:
+
+```php
+use LarAgent\Context\Drivers\CacheStorage;
+use LarAgent\Context\Drivers\FileStorage;
+
+class SupportAgent extends Agent
+{
+    protected $history = [
+        CacheStorage::class,  // Primary: read first, write first
+        FileStorage::class,   // Fallback: used if primary fails on read
+    ];
+}
+```
+
+**How it works:**
+- **Reading**: Tries the primary driver first. If it returns no data, falls back to the next driver.
+- **Writing**: Writes to **all** drivers in the chain to keep them synchronized.
+- **Removing**: Removes from **all** drivers.
+
+<Tip>
+Use the fallback pattern for high availability. For example, cache for speed with file storage as a durable backup.
+</Tip>
+
+<Card title="Storage Drivers Reference" icon="hard-drive" href="/v1/context/storage-drivers">
+  Learn about all available storage drivers, their configuration options, and custom model examples.
+</Card>
+
+## Working with Chat History
+
+### Accessing Chat History
+
+```php
+// Get the chat history instance
+$chatHistory = $agent->chatHistory();
+
+// Get all messages
+$messages = $chatHistory->getMessages();
+
+// Get the last message
+$lastMessage = $chatHistory->getLastMessage();
+
+// Get message count
+$count = $chatHistory->count();
+
+// Convert to array
+$messagesArray = $chatHistory->toArray();
+```
+
+### Adding Messages Manually
+
+```php
+use LarAgent\Message;
+
+// Add a user message
+$agent->addMessage(Message::user('Hello, I need help.'));
+
+// Add an assistant message
+$agent->addMessage(Message::assistant('Of course! How can I help you?'));
+
+// Add a system message
+$agent->addMessage(Message::system('Additional context...'));
+```
+
+<Tip>
+All messages support metadata. Use `$message->addMeta([...])` to attach custom data or pass it during creation as second argument `Message::user('text', ['key' => 'value'])`.
+</Tip>
+
+#### Metadata Storage
+
+By default, only message content is stored. Enable metadata storage to persist additional information like agent name, model used, and custom data.
+
+##### Enable via Property
+
+```php
+class SupportAgent extends Agent
+{
+    protected $storeMeta = true;
+}
+```
+
+##### Enable via Provider Config
+
+```php
+'providers' => [
+    'default' => [
+        'store_meta' => true,
+        // ...
+    ],
+],
+```
+
+##### Metadata Contents
+
+```php
+// Metadata automatically added to messages
+[
+    'agent' => 'SupportAgent',  // Agent name
+    'model' => 'gpt-4',         // Model used
+    // Custom metadata added via $message->addMeta([...])
+]
+```
+
+### Clearing Chat History
+
+```php
+// Clear all messages (keeps the session)
+$agent->clear();
+
+// Using Context Facade for bulk operations
+use LarAgent\Facades\Context;
+
+// Clear all chats for an agent
+Context::of(SupportAgent::class)->clearAllChats();
+
+// Clear all chats for a specific user
+Context::of(SupportAgent::class)
+    ->forUser('user-123')
+    ->clearAllChats();
+```
+
+<Note>
+Check out the [Context Facade](/v1/context/facade) for more on using the `Context` facade.
+</Note>
+
+<Tip>
+You can also use artisan commands during development to clear chat histories.
+</Tip>
+
+### Manual Read/Save Operations
+
+```php
+// Read/refresh from storage
+$agent->chatHistory()->read();
+
+// Save to storage (only if there are changes)
+$agent->chatHistory()->save();
+
+// Force write to storage (bypasses dirty check)
+$agent->chatHistory()->writeToMemory();
+
+// Force read from storage drivers (bypasses lazy loading)
+$agent->chatHistory()->readFromMemory();
+```
+
+
+## Force Read/Save Flags
+
+Control when chat history is synchronized with storage:
+
+```php
+class SupportAgent extends Agent
+{
+    /**
+     * Force read history from storage on agent initialization
+     * Default: false (uses lazy loading)
+     */
+    protected $forceReadHistory = false;
+    
+    /**
+     * Force save history after each agent response
+     * Default: false (saves at end of request lifecycle)
+     */
+    protected $forceSaveHistory = false;
+}
+```
+
+### Default Behavior
+
+By default, LarAgent uses **lazy loading** for reading and **end-of-request saving**:
+- **Reading**: Chat history is loaded from storage only when first accessed
+- **Saving**: Chat history is saved automatically when the request ends
+
+### Long-Running Processes
+
+In long-running environments (Laravel Octane, FrankenPHP, Swoole), agent instances may persist across requests. Use both flags to ensure data freshness:
+
+```php
+class OctaneSafeAgent extends Agent
+{
+    protected $instructions = 'You are a helpful assistant.';
+    
+    // Always read fresh data
+    protected $forceReadHistory = true;
+    
+    // Save immediately
+    protected $forceSaveHistory = true;
+}
+```
+
+## Truncation Strategies
+
+When conversations exceed the model's context window, truncation strategies automatically reduce the conversation size while preserving important context.
+
+### Enabling Truncation
+
+<Tabs>
+  <Tab title="Global Config">
+```php
+// config/laragent.php
+
+return [
+    // Enable truncation globally
+    'enable_truncation' => true,
+    // Set default strategy and config
+    'default_truncation_strategy' => \LarAgent\Context\Truncation\SimpleTruncationStrategy::class,
+    'default_truncation_config' => [
+        'keep_messages' => 10,
+        'preserve_system' => true,
+    ],
+    'truncation_buffer' => 0.2, // Reserve 20% for new content
+];
+```
+  </Tab>
+  <Tab title="Per-Provider">
+```php
+'providers' => [
+    'default' => [
+        'enable_truncation' => true,
+        'default_truncation_threshold' => 50000,
+    ],
+],
+```
+  </Tab>
+  <Tab title="Per-Agent">
+```php
+class LongConversationAgent extends Agent
+{
+    protected $enableTruncation = true;
+    protected $truncationThreshold = 30000;
+}
+```
+  </Tab>
+</Tabs>
+
+
+#### Full Control via Method Override
+
+Override the `truncationStrategy()` method for full control:
+
+```php
+use LarAgent\Context\Truncation\SummarizationStrategy;
+
+class CustomTruncationAgent extends Agent
+{
+    protected $instructions = 'You are a helpful assistant.';
+    
+    /**
+     * Override to provide a custom truncation strategy.
+     */
+    protected function truncationStrategy(): ?\LarAgent\Context\Contracts\TruncationStrategy
+    {
+        return new SummarizationStrategy([
+            'keep_messages' => 20,
+            'summary_agent' => \App\AiAgents\CustomSummarizerAgent::class,
+            'summary_title' => 'Previous conversation context',
+            'preserve_system' => true,
+        ]);
+    }
+    
+    /**
+     * Override to check if truncation should be enabled.
+     */
+    public function shouldTruncate(): bool
+    {
+        // Custom logic - e.g., only truncate in production
+        if (app()->environment('testing')) {
+            return false;
+        }
+        
+        return parent::shouldTruncate();
+    }
+    
+    /**
+     * Override to set a custom truncation threshold.
+     */
+    public function getTruncationThreshold(): int
+    {
+        // Dynamic threshold based on model
+        return match ($this->model()) {
+            'gpt-4' => 50000,
+            'gpt-3.5-turbo' => 10000,
+            default => 30000,
+        };
+    }
+}
+```
+
+### Built-in Strategies
+
+#### SimpleTruncationStrategy
+
+Keeps the last N messages, discarding older ones. Fast and simple.
+
+```php
+$strategy = new SimpleTruncationStrategy([
+    'keep_messages' => 10,
+    'preserve_system' => true,
+]);
+```
+
+#### SummarizationStrategy
+
+Summarizes removed messages using an AI agent, preserving context.
+
+```php
+$strategy = new SummarizationStrategy([
+    'keep_messages' => 5,
+    'summary_agent' => ChatSummarizerAgent::class,
+    'summary_title' => 'Summary of previous conversation',
+    'preserve_system' => true,
+]);
+```
+
+#### SymbolizationStrategy
+
+Creates brief "symbols" for each removed message, providing a timeline.
+
+```php
+$strategy = new SymbolizationStrategy([
+    'keep_messages' => 5,
+    'summary_agent' => ChatSymbolizerAgent::class,
+    'symbol_title' => 'Conversation symbols',
+    'preserve_system' => true,
+    'batch_size' => 10,
+]);
+```
+
+### Runtime Configuration
+
+```php
+// Enable/disable dynamically
+$agent = SupportAgent::for('session-123')
+    ->enableTruncation(true);
+
+// Configure via context
+$agent->context()
+    ->setTruncationStrategy(new SymbolizationStrategy([
+        'keep_messages' => 10,
+    ]))
+    ->setTruncationThreshold(40000)
+    ->setTruncationBuffer(0.25);
+```
+
+### Understanding Thresholds
+
+<Warning>
+The `truncationThreshold` is NOT the model's context window. Set it to 30-50% of the model's actual context window to leave room for system prompts, tools, and responses.
+</Warning>
+
+**Effective threshold calculation:**
+```
+effective_threshold = truncation_threshold × (1 - buffer)
+
+Example:
+truncation_threshold = 50000
+buffer = 0.2 (20%)
+effective_threshold = 50000 × 0.8 = 40000 tokens
+```
+
+**Recommendations:**
+- **Maximum**: 80% of model's context window (aggressive)
+- **Recommended**: 30-50% (balanced)
+- **Conservative**: 20-30% (for agents with large tool outputs)
+
+### Creating Custom Strategies
+
+Use the artisan command to scaffold a custom strategy:
+
+```bash
+php artisan make:truncation-strategy CustomTruncation
+```
+
+This creates `app/TruncationStrategies/CustomTruncationStrategy.php`:
+
+```php
+<?php
+
+namespace App\TruncationStrategies;
+
+use LarAgent\Context\Abstract\TruncationStrategy;
+use LarAgent\Messages\DataModels\MessageArray;
+
+class CustomTruncationStrategy extends TruncationStrategy
+{
+    protected function defaultConfig(): array
+    {
+        return [
+            'preserve_system' => true,
+        ];
+    }
+
+    public function truncate(MessageArray $messages, int $truncationThreshold, int $currentTokens): MessageArray
+    {
+        // Implement your truncation logic
+        return $messages;
+    }
+}
+```
+
+<Accordion title="Example: Priority-Based Truncation">
+Keep messages marked as important:
+
+```php
+<?php
+
+namespace App\TruncationStrategies;
+
+use LarAgent\Context\Abstract\TruncationStrategy;
+use LarAgent\Messages\DataModels\MessageArray;
+
+class PriorityTruncationStrategy extends TruncationStrategy
+{
+    protected function defaultConfig(): array
+    {
+        return [
+            'keep_messages' => 10,
+            'preserve_system' => true,
+            'priority_metadata_key' => 'priority',
+            'high_priority_value' => 'high',
+        ];
+    }
+
+    public function truncate(MessageArray $messages, int $truncationThreshold, int $currentTokens): MessageArray
+    {
+        $keepMessages = $this->getConfig('keep_messages', 10);
+        $priorityKey = $this->getConfig('priority_metadata_key');
+        $highPriorityValue = $this->getConfig('high_priority_value');
+        
+        if ($messages->count() <= $keepMessages) {
+            return $messages;
+        }
+        
+        $newMessages = new MessageArray;
+        $allMessages = $messages->all();
+        
+        // Separate by type
+        $systemMessages = [];
+        $highPriorityMessages = [];
+        $regularMessages = [];
+        
+        foreach ($allMessages as $message) {
+            if ($this->shouldPreserve($message)) {
+                $systemMessages[] = $message;
+            } elseif ($this->isHighPriority($message, $priorityKey, $highPriorityValue)) {
+                $highPriorityMessages[] = $message;
+            } else {
+                $regularMessages[] = $message;
+            }
+        }
+        
+        // Build result: system → high priority → recent regular
+        foreach ($systemMessages as $message) {
+            $newMessages->add($message);
+        }
+        foreach ($highPriorityMessages as $message) {
+            $newMessages->add($message);
+        }
+        
+        $regularToKeep = max(0, $keepMessages - count($highPriorityMessages));
+        $recentRegular = array_slice($regularMessages, -$regularToKeep);
+        foreach ($recentRegular as $message) {
+            $newMessages->add($message);
+        }
+        
+        return $newMessages;
+    }
+    
+    protected function isHighPriority($message, string $key, string $value): bool
+    {
+        if (!method_exists($message, 'getMetadata')) {
+            return false;
+        }
+        return ($message->getMetadata()[$key] ?? null) === $value;
+    }
+}
+```
+</Accordion>
+
+## Events
+
+Chat history operations emit events that you can listen to for logging, validation, or custom behavior.
+
+Available events include:
+- `MessageAdding` / `MessageAdded`
+- `ChatHistorySaving` / `ChatHistorySaved`
+- `ChatHistoryLoaded`
+- `ChatHistoryTruncated`
+
+<Card title="Chat History Events" icon="bolt" href="/v1/customization/events/history">
+  Learn how to listen to and handle chat history events for custom behavior.
+</Card>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Context Overview" icon="layer-group" href="/v1/context/overview">
+    Understand the Context and Identity system for storage isolation.
+  </Card>
+  <Card title="Usage Tracking" icon="chart-line" href="/v1/context/usage-tracking">
+    Track token usage and costs across agent interactions.
+  </Card>
+</CardGroup>

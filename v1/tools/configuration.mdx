@@ -1,0 +1,168 @@
+---
+title: "Configuration & Runtime"
+description: "Configure tool behavior including tool choice, parallel execution, and runtime tool management."
+---
+
+## Agent Properties
+
+Configure tool behavior using these properties in your agent class:
+
+```php
+class MyAgent extends Agent
+{
+    /** @var array - Tool classes to register with the agent */
+    protected $tools = [
+        WeatherTool::class,
+        CalendarTool::class,
+    ];
+
+    /** @var bool|null - Whether tools can execute in parallel */
+    protected $parallelToolCalls = true;
+
+    /** @var string - Tool selection mode: 'auto', 'none', or 'required' */
+    protected $toolChoice = 'auto';
+}
+```
+
+<Tip>
+Set `$parallelToolCalls` to `null` or remove it to remove parameter from the request entirely. Some models like `o1` don't support parallel tool calls.
+</Tip>
+
+## Tool Choice
+
+Control how the LLM selects and uses tools for each request.
+
+### Available Modes
+
+| Mode | Description |
+|------|-------------|
+| `auto` | LLM decides whether to use tools (default when tools are registered) |
+| `none` | Disable tool usage for this request |
+| `required` | Force the LLM to call at least one tool |
+
+### Runtime Methods
+
+```php
+// Disable tools for this specific call
+WeatherAgent::for('chat-123')
+    ->toolNone()
+    ->respond('What is your name?');
+
+// Require at least one tool call
+WeatherAgent::for('chat-123')
+    ->toolRequired()
+    ->respond('What is the weather?');
+
+// Force a specific tool to be used
+WeatherAgent::for('chat-123')
+    ->forceTool('get_weather')
+    ->respond('Check the weather in Paris');
+
+// Set tool choice programmatically
+$agent->setToolChoice('none');
+$agent->setToolChoice('required');
+$agent->setToolChoice('auto');
+```
+
+<Warning>
+`toolRequired()` and `forceTool()` only apply to the first LLM call. After that, tool choice automatically switches to `auto` to prevent infinite loops.
+</Warning>
+
+<Note>
+`forceTool()` requires the tool's name as a parameter, not the method or class name.
+</Note>
+
+## Parallel Tool Calls
+
+When enabled, the LLM can request multiple tool calls in a single response, which LarAgent executes together before continuing.
+
+```php
+// Enable parallel tool calls (default)
+protected $parallelToolCalls = true;
+
+// Disable parallel tool calls
+protected $parallelToolCalls = false;
+
+// Remove from request (for models that don't support it)
+protected $parallelToolCalls = null;
+```
+
+At runtime:
+
+```php
+// Enable parallel execution
+$agent->parallelToolCalls(true);
+
+// Disable parallel execution
+$agent->parallelToolCalls(false);
+
+// Remove from request
+$agent->parallelToolCalls(null);
+```
+
+## Runtime Tool Management
+
+Add or remove tools dynamically during execution.
+
+### Adding Tools
+
+```php
+use LarAgent\Tool;
+
+// Add a tool class
+$agent->withTool(WeatherTool::class);
+
+// Add an inline tool instance
+$tool = Tool::create('get_time', 'Get current server time')
+    ->setCallback(fn() => now()->toIso8601String());
+
+$agent->withTool($tool);
+```
+
+### Removing Tools
+
+```php
+// Remove by tool name
+$agent->removeTool('get_weather');
+
+// Remove by class name
+$agent->removeTool(WeatherTool::class);
+
+// Remove by instance
+$agent->removeTool($tool);
+```
+
+### Conditional Tools
+
+Register tools based on runtime conditions:
+
+```php
+$user = auth()->user();
+
+$agent = MyAgent::for($user->id);
+
+// Add tools based on user permissions
+if ($user->can('manage_calendar')) {
+    $agent->withTool(CalendarTool::class);
+}
+
+if ($user->isAdmin()) {
+    $agent->withTool(AdminTool::class);
+}
+
+$response = $agent->respond($message);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Phantom Tools" icon="ghost" href="/v1/tools/phantom-tools">
+    Tools that return control to your application for external handling.
+  </Card>
+  <Card title="Attribute Tools" icon="wand-magic-sparkles" href="/v1/tools/attribute-tools">
+    Create tools using the #[Tool] attribute.
+  </Card>
+  <Card title="Tool Classes & Inline" icon="puzzle-piece" href="/v1/tools/other-tools">
+    Build reusable tool classes or create tools dynamically.
+  </Card>
+</CardGroup>

@@ -9,63 +9,172 @@
   },
   "favicon": "images/favicon.png",
   "banner": {
-    "content": "🔴 LarAgent is powered by Redberry. Need help building AI agents in Laravel? [Talk to us](https://redberry.international/ai-agent-development/) →"
+    "content": "🔴 LarAgent is powered by Redberry. Need help building AI agents in Laravel? [Talk to us](https://redberry.international/ai-agent-development/?utm_source=documentation&utm_medium=documentation_banner&utm_campaign=AI+service+campaign) →"
   },
   "navigation": {
-    "tabs": [
+    "versions": [
+
       {
-        "tab": "Documentation",
-        "groups": [
+        "version": "1.x",
+        "tabs": [
           {
-            "group": "Get Started",
-            "pages": [
-              "introduction",
-              "quickstart",
-              "development"
+            "tab": "Usage",
+            "groups": [
+              {
+                "group": "Get Started",
+                "pages": [
+                  "introduction",
+                  "quickstart"
+                ]
+              },
+              {
+                "group": "Agents",
+                "pages": [
+                  "v1/agents/overview",
+                  "v1/agents/creation",
+                  "v1/agents/llm-drivers",
+                  {
+                    "group": "Responses",
+                    "expanded": true,
+                    "pages": [
+                      "v1/responses/overview",
+                      "v1/responses/structured-output",
+                      "v1/responses/streaming"
+                    ]
+                  },
+                  {
+                    "group": "Tools & MCP",
+                    "expanded": false,
+                    "pages": [
+                      "v1/tools/overview",
+                      "v1/tools/attribute-tools",
+                      "v1/tools/mcp",
+                      "v1/tools/other-tools",
+                      "v1/tools/configuration",
+                      "v1/tools/phantom-tools"
+                    ]
+                  },
+                  "v1/agents/rag",
+                  "v1/agents/hooks",
+                  "v1/agents/agent-via-api"
+                ]
+              },
+              {
+                "group": "Context (Storage)",
+                "pages": [
+                  "v1/context/overview",
+                  "v1/context/identity",
+                  "v1/context/storage-drivers",
+                  "v1/context/history",
+                  "v1/context/usage-tracking",
+                  "v1/context/data-model",
+                  "v1/context/facade"
+                ]
+              }
             ]
           },
           {
-            "group": "Core concepts",
-            "pages": [
-              "core-concepts/agents",
-              "core-concepts/tools",
-              "core-concepts/mcp",
-              "core-concepts/chat-history",
-              "core-concepts/structured-output",
-              "core-concepts/streaming",
-              "core-concepts/agent-via-api",
-              "core-concepts/llm-drivers",
-              "core-concepts/commands",
-              "core-concepts/rag",
-              "core-concepts/usage-without-laravel"
+            "tab": "Customization & Extensibility",
+            "groups": [
+              {
+                "group": "Events",
+                "pages": [
+                  "v1/customization/events/setup",
+                  "v1/customization/events/agent",
+                  "v1/customization/events/context",
+                  "v1/customization/events/identity",
+                  "v1/customization/events/history"
+                ]
+              },
+              {
+                "group": "Context",
+                "pages": [
+                  "v1/customization/context/storage",
+                  "v1/customization/context/storage-driver"
+                ]
+              }
             ]
           },
           {
-            "group": "Extensibility & Customization",
-            "pages": [
-              "customization/events",
-              "customization/hooks",
-              "customization/listen-to-events",
-              "customization/custom-driver",
-              "customization/custom-chat-history"
+            "tab": "Guides",
+            "groups": [
+              {
+                "group": "General",
+                "pages": [
+                  "guides/introduction",
+                  "guides/upgrade-to-v1",
+                  "guides/development"
+                ]
+              },
+              {
+                "group": "RAG",
+                "pages": [
+                  "guides/rag/vector-based",
+                  "guides/rag/retrieval-as-tool"
+                ]
+              }
             ]
           }
         ]
       },
       {
-        "tab": "Guides",
-        "groups": [
+        "version": "0.x",
+        "tabs": [
           {
-            "group": "General",
-            "pages": [
-              "guides/introduction"
+            "tab": "Documentation",
+            "groups": [
+              {
+                "group": "Get Started",
+                "pages": [
+                  "introduction",
+                  "quickstart"
+                ]
+              },
+              {
+                "group": "Core concepts",
+                "pages": [
+                  "v0/core-concepts/agents",
+                  "v0/core-concepts/tools",
+                  "v0/core-concepts/mcp",
+                  "v0/core-concepts/chat-history",
+                  "v0/core-concepts/structured-output",
+                  "v0/core-concepts/streaming",
+                  "v0/core-concepts/agent-via-api",
+                  "v0/core-concepts/llm-drivers",
+                  "v0/core-concepts/commands",
+                  "v0/core-concepts/rag",
+                  "v0/core-concepts/usage-without-laravel"
+                ]
+              },
+              {
+                "group": "Extensibility & Customization",
+                "pages": [
+                  "v0/customization/events",
+                  "v0/customization/hooks",
+                  "v0/customization/listen-to-events",
+                  "v0/customization/custom-driver",
+                  "v0/customization/custom-chat-history"
+                ]
+              }
             ]
           },
           {
-            "group": "RAG",
-            "pages": [
-              "guides/rag/vector-based",
-              "guides/rag/retrieval-as-tool"
+            "tab": "Guides",
+            "groups": [
+              {
+                "group": "General",
+                "pages": [
+                  "guides/introduction",
+                  "guides/development"
+                ]
+              },
+              {
+                "group": "RAG",
+                "pages": [
+                  "guides/rag/vector-based",
+                  "guides/rag/retrieval-as-tool"
+                ]
+              }
             ]
           }
         ]
@@ -87,6 +196,11 @@
           "anchor": "Blog",
           "href": "https://blog.laragent.ai",
           "icon": "newspaper"
+        },
+        {
+          "anchor": "Upgrade to v1.0",
+          "href": "/guides/upgrade-to-v1",
+          "icon": "arrow-up-right-dots"
         }
       ]
     }
@@ -97,6 +211,10 @@
   },
   "navbar": {
     "links": [
+      {
+        "label": "Contribution",
+        "href": "/guides/development"
+      },
       {
         "label": "Support",
         "href": "https://github.com/MaestroError/LarAgent/issues"
@@ -114,5 +232,13 @@
       "linkedin": "https://www.linkedin.com/company/laragent",
       "discord": "https://discord.gg/NAczq2T9F8"
     }
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude"
+    ]
   }
 }

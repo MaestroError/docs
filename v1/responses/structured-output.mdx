@@ -1,0 +1,357 @@
+---
+title: "Structured Output"
+description: "Define response schemas to receive type-safe, predictable data from your AI agents using DataModels or array schemas."
+---
+
+Structured output constrains the LLM to return JSON matching your defined schema. Instead of parsing free-form text, you get predictable data structures that integrate seamlessly with your application.
+
+## Quick Start
+
+Define a DataModel and use it as your response schema:
+
+```php
+use LarAgent\Core\Abstractions\DataModel;
+use LarAgent\Attributes\Desc;
+
+class WeatherInfo extends DataModel
+{
+    #[Desc('The city name')]
+    public string $city;
+    
+    #[Desc('Temperature in Celsius')]
+    public float $temperature;
+    
+    #[Desc('Weather condition')]
+    public string $condition;
+}
+```
+
+```php
+class WeatherAgent extends Agent
+{
+    protected $responseSchema = WeatherInfo::class;
+    
+    public function instructions()
+    {
+        return 'Provide weather information for the requested location.';
+    }
+}
+```
+
+```php
+$weather = WeatherAgent::ask('What is the weather in Paris?');
+
+echo $weather->city;        // 'Paris'
+echo $weather->temperature; // 18.5
+echo $weather->condition;   // 'Partly cloudy'
+```
+
+---
+
+## Setting Up Schemas
+
+### Using a DataModel Class
+
+The recommended approach for type-safe responses:
+
+```php
+class ProductExtractor extends Agent
+{
+    protected $responseSchema = ProductInfo::class;
+}
+
+// Response is automatically a ProductInfo instance
+$product = ProductExtractor::ask('Extract: MacBook Air M3 - $1,099');
+echo $product->name;  // 'MacBook Air M3'
+echo $product->price; // 1099
+```
+
+### Using an Array Schema
+
+For simple cases or dynamic schemas:
+
+```php
+class ProductExtractor extends Agent
+{
+    protected $responseSchema = [
+        'type' => 'object',
+        'properties' => [
+            'name' => ['type' => 'string', 'description' => 'Product name'],
+            'price' => ['type' => 'number', 'description' => 'Price in dollars'],
+        ],
+        'required' => ['name', 'price'],
+        'additionalProperties' => false,
+    ];
+}
+
+// Response is an associative array
+$product = ProductExtractor::ask('Extract: MacBook Air M3 - $1,099');
+// ['name' => 'MacBook Air M3', 'price' => 1099]
+```
+
+### Using the `structuredOutput()` Method
+
+For dynamic schemas or complex logic, override the `structuredOutput()` method:
+
+<CodeGroup>
+```php Using DataModel Schema
+class DynamicAgent extends Agent
+{
+    public function structuredOutput()
+    {
+        // Dynamically choose schema based on context
+        if ($this->requiresDetailedResponse()) {
+            return DetailedReport::generateSchema();
+        }
+        
+        return SummaryReport::generateSchema();
+    }
+    
+    // Enable automatic DataModel reconstruction
+    public function getResponseSchemaClass(): ?string
+    {
+        return $this->requiresDetailedResponse() 
+            ? DetailedReport::class 
+            : SummaryReport::class;
+    }
+}
+```
+
+```php Using Array Schema
+class DynamicAgent extends Agent
+{
+    public function structuredOutput()
+    {
+        return [
+            'type' => 'object',
+            'properties' => $this->buildPropertiesBasedOnContext(),
+            'required' => ['field1', 'field2'],
+            'additionalProperties' => false,
+        ];
+    }
+}
+```
+</CodeGroup>
+
+<Info>
+When you override `structuredOutput()`, also override `getResponseSchemaClass()` to enable automatic DataModel reconstruction. Or skip if you want response returned as array.
+</Info>
+
+### Runtime Schema
+
+Set the schema at runtime using the fluent API:
+
+```php
+$response = MyAgent::for('session')
+    ->responseSchema(ProductInfo::class)
+    ->respond('Extract product info from: iPhone 15 - $799');
+```
+
+---
+
+## DataModel Basics
+
+DataModels are PHP classes that define your expected response structure.
+
+### Property Types
+
+```php
+class UserProfile extends DataModel
+{
+    public string $name;           // Text
+    public int $age;               // Integer
+    public float $score;           // Decimal
+    public bool $isActive;         // Boolean
+    public array $tags;            // Generic array
+    public ?string $nickname;      // Nullable (optional)
+    public UserStatus $status;     // Enum (string-backed or int-backed)
+    public Address $address;       // Nested DataModel
+    public SkillArray $skills;     // DataModelArray: collection of DataModels
+}
+```
+
+### The `#[Desc]` Attribute
+
+Add descriptions to guide the LLM on what each field should contain:
+
+```php
+use LarAgent\Attributes\Desc;
+
+class ContactInfo extends DataModel
+{
+    #[Desc('Full legal name of the person')]
+    public string $name;
+    
+    #[Desc('Valid email address format')]
+    public string $email;
+    
+    #[Desc('Phone number with country code')]
+    public ?string $phone = null;
+}
+```
+
+<Tip>
+Descriptive `#[Desc]` attributes significantly improve the quality and accuracy of extracted data.
+</Tip>
+
+### Optional Properties
+
+Use nullable types or default values:
+
+```php
+class Article extends DataModel
+{
+    #[Desc('Article title')]
+    public string $title;
+    
+    #[Desc('Article subtitle (optional)')]
+    public ?string $subtitle = null;
+    
+    #[ExcludeFromSchema]
+    public string $status = 'draft';
+}
+```
+
+<Tip>
+Use `#[ExcludeFromSchema]` to exclude properties from the schema passed to the LLM. 
+These properties won't be affected by the AI response — they remain 
+completely controlled by you with their default values and defined methods.
+</Tip>
+
+---
+
+## Advanced DataModels
+
+DataModels support powerful features for complex data structures:
+
+- **Nested DataModels** — Embed DataModels within other DataModels for hierarchical data
+- **DataModelArray** — Type-safe collections of DataModels
+- **Polymorphic Collections** — Collections containing different DataModel types with discriminators
+
+<Card title="DataModels In-Depth" icon="database" href="/v1/context/data-model">
+  Learn about nested structures, collections, polymorphic arrays, and advanced DataModel patterns.
+</Card>
+
+---
+
+## Real-World Example
+
+A complete example analyzing product reviews:
+
+```php App/DataModels/ReviewSentiment.php
+// Represents sentiment analysis for a single review
+class ReviewSentiment extends DataModel
+{
+    #[Desc('Overall sentiment: positive, negative, or neutral')]
+    public string $sentiment;
+    
+    #[Desc('Confidence score from 0.0 to 1.0')]
+    public float $confidence;
+    
+    #[Desc('Key points from the review')]
+    public array $keyPoints;
+}
+```
+
+```php App/DataModels/ReviewSentimentArray.php
+// Typed collection of ReviewSentiment instances
+class ReviewSentimentArray extends DataModelArray
+{
+    public static function allowedModels(): array
+    {
+        return [ReviewSentiment::class];
+    }
+}
+```
+
+```php App/DataModels/ReviewAnalysis.php
+// Complete analysis result containing all reviews and summary
+class ReviewAnalysis extends DataModel
+{
+    #[Desc('Product being reviewed')]
+    public string $productName;
+    
+    #[Desc('Average sentiment score')]
+    public float $averageScore;
+    
+    #[Desc('Individual review analyses')]
+    public ReviewSentimentArray $reviews;
+    
+    #[Desc('Summary recommendation')]
+    public string $recommendation;
+}
+```
+
+```php App/AiAgents/ReviewAnalyzerAgent.php
+// Agent that analyzes product reviews using the ReviewAnalysis schema
+class ReviewAnalyzerAgent extends Agent
+{
+    protected $model = 'gpt-4o';
+    protected $responseSchema = ReviewAnalysis::class;
+    
+    public function instructions()
+    {
+        return 'Analyze product reviews and provide sentiment analysis.';
+    }
+}
+```
+
+```php
+
+$reviews = <<<REVIEWS
+1. "Great product! Fast shipping, excellent quality."
+2. "Decent but overpriced. Works as expected."
+3. "Disappointed. Broke after a week."
+REVIEWS;
+
+// Analyze reviews and get structured response
+$analysis = ReviewAnalyzerAgent::ask("Analyze these reviews:\n{$reviews}");
+
+echo "Product: {$analysis->productName}\n";
+echo "Average Score: {$analysis->averageScore}\n";
+echo "Recommendation: {$analysis->recommendation}\n";
+
+foreach ($analysis->reviews as $review) {
+    echo "- {$review->sentiment} ({$review->confidence})\n";
+}
+
+```
+
+---
+
+## Best Practices
+
+<Check>
+Use DataModels for reusable, type-safe schemas with IDE autocompletion.
+</Check>
+
+<Check>
+Add descriptive `#[Desc]` attributes to guide the LLM.
+</Check>
+
+<Check>
+Use `DataModelArray` instead of raw arrays for typed collections.
+</Check>
+
+<Check>
+Keep DataModels focused — split complex structures into nested models.
+</Check>
+
+<Warning>
+Avoid deeply nested schemas (4+ levels) as they can reduce response accuracy.
+</Warning>
+
+<Warning>
+Always include critical fields in `required` — only omit truly optional properties.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Streaming" icon="wave-pulse" href="/v1/responses/streaming">
+    Stream responses in real-time.
+  </Card>
+  <Card title="Tools" icon="wrench" href="/v1/tools/overview">
+    Extend agents with custom tools.
+  </Card>
+</CardGroup>

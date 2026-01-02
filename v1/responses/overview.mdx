@@ -1,0 +1,322 @@
+---
+title: "Overview"
+description: "Learn how to interact with agents, handle responses, and use chainable methods to customize behavior at runtime."
+---
+
+## Getting Responses
+
+There are multiple ways to interact with your agent and get responses.
+
+### Using `for()`: Named Sessions
+
+Use `for()` to specify a chat session identifier. This enables conversation persistence based on your configured history storage:
+
+```php
+$response = WeatherAgent::for('weather-chat')->respond('What is the weather like?');
+```
+
+The session ID creates a unique conversation thread. Use meaningful identifiers like user IDs, ticket numbers, or conversation UUIDs.
+
+### Using `forUser()`: User-Specific Sessions
+
+Pass a Laravel `Authenticatable` object directly to create user-specific sessions:
+
+```php
+$response = WeatherAgent::forUser(auth()->user())->respond('What is the weather like?');
+
+// Or with any Authenticatable model
+$response = WeatherAgent::forUser($customer)->respond('Check my order status');
+```
+
+This automatically uses the user's identifier to create a unique session, making it easy to maintain per-user conversation history.
+
+<Tip>
+Learn more about session management and history storage options in [Context & History](/v1/context/history).
+</Tip>
+
+### Using `ask()`: Quick One-Off
+
+For simple, stateless interactions where you don't need conversation history:
+
+```php
+$response = WeatherAgent::ask('What is 2 + 2?');
+```
+
+<Info>
+`ask()` uses in-memory history that's discarded after the response. Perfect for single-turn interactions.
+</Info>
+
+### Using `make()`: Instance Without Session
+
+Create an agent instance without a named session:
+
+```php
+$response = WeatherAgent::make()
+    ->temperature(0.7)
+    ->respond('Tell me a joke');
+```
+
+---
+
+## Chainable Methods
+
+Build complex requests using the fluent API:
+
+```php
+$response = WeatherAgent::for('user-123')
+    ->message('What is the weather like?')  // Set message
+    ->temperature(0.7)                      // Adjust creativity
+    ->withModel('gpt-4o')                   // Override model
+    ->respond();                            // Execute
+```
+
+### Setting the Message
+
+```php
+// Simple string message
+$agent->message('Your question here')->respond();
+
+// Or pass message directly to respond()
+$agent->respond('Your question here');
+```
+
+#### Using UserMessage Objects
+
+For more control, create a `UserMessage` instance with metadata and bypass prompt processing:
+
+```php
+use LarAgent\Message;
+
+$userMessage = Message::user('What is the weather?', [
+    'requestId' => $requestId,
+    'userId' => auth()->id(),
+]);
+
+$response = WeatherAgent::for('session')->message($userMessage)->respond();
+```
+
+<Warning>
+When using a `UserMessage` instance, the `prompt()` method is bypassed. The message is sent directly to the LLM.
+</Warning>
+
+---
+
+## Response Types
+
+By default, `respond()` returns different types based on your configuration:
+
+| Configuration | Return Type |
+|--------------|-------------|
+| Standard request | `string` |
+| `$n` > 1 | `array` of strings |
+| Structured output (array schema) | Associative `array` |
+| Structured output (DataModel) | `DataModel` instance |
+
+### Getting the Raw Message Object
+
+To get the full `AssistantMessage` object instead of just the content:
+
+```php
+$message = WeatherAgent::for('session')
+    ->returnMessage()
+    ->respond('What is the weather?');
+
+// Access message properties
+$content = $message->getContent();
+$role = $message->getRole();
+$metadata = $message->getMetadata();
+```
+
+<Tip>
+Use `returnMessage()` when you need access to message metadata or want to inspect the full response object.
+</Tip>
+
+---
+
+## Multimodal Input
+
+### Images
+
+Pass image URLs or base64-encoded images for vision-capable models:
+
+```php
+// URL-based images
+$response = VisionAgent::for('analysis')
+    ->withImages([
+        'https://example.com/image1.jpg',
+        'https://example.com/image2.jpg',
+    ])
+    ->respond('What do you see in these images?');
+
+// Base64-encoded images
+$base64Image = base64_encode(file_get_contents('photo.jpg'));
+
+$response = VisionAgent::for('analysis')
+    ->withImages(['data:image/jpeg;base64,' . $base64Image])
+    ->respond('Describe this image');
+```
+
+### Audio
+
+Pass base64-encoded audio for audio-capable models:
+
+```php
+$audioData = base64_encode(file_get_contents('recording.mp3'));
+
+$response = AudioAgent::for('transcription')
+    ->withAudios([
+        [
+            'format' => 'mp3',  // wav, mp3, ogg, flac, m4a, webm
+            'data' => $audioData,
+        ]
+    ])
+    ->respond('Transcribe this audio');
+```
+
+---
+
+## Runtime Mutators
+
+Override agent configuration for specific requests:
+
+<AccordionGroup>
+  <Accordion title="withModel() — Change model">
+    ```php
+    $agent->withModel('gpt-4o')->respond('Complex question');
+    ```
+  </Accordion>
+  
+  <Accordion title="temperature() — Adjust creativity">
+    ```php
+    // 0.0 = focused, 2.0 = creative
+    $agent->temperature(1.5)->respond('Write a poem');
+    ```
+  </Accordion>
+  
+  <Accordion title="maxCompletionTokens() — Limit response length">
+    ```php
+    $agent->maxCompletionTokens(500)->respond('Summarize this');
+    ```
+  </Accordion>
+  
+  <Accordion title="withTool() — Add tool at runtime">
+    ```php
+    $agent->withTool(new CalculatorTool())->respond('What is 15% of 230?');
+    ```
+  </Accordion>
+  
+  <Accordion title="removeTool() — Remove tool for this request">
+    ```php
+    $agent->removeTool('web_search')->respond('Answer from your knowledge only');
+    ```
+  </Accordion>
+  
+  <Accordion title="addMessage() — Inject message into history">
+    ```php
+    use LarAgent\Message;
+    
+    $agent->addMessage(Message::system('Be extra concise'))
+          ->respond('Explain quantum computing');
+    ```
+  </Accordion>
+  
+  <Accordion title="clear() — Reset conversation history">
+    ```php
+    $agent->clear()->respond("Let's start fresh");
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Accessors
+
+Inspect agent state and retrieve information:
+
+<AccordionGroup>
+  <Accordion title="getChatSessionId() — Get session identifier">
+    ```php
+    $sessionId = $agent->getChatSessionId();
+    // Returns: "WeatherAgent_gpt-4o-mini_user-123"
+    ```
+  </Accordion>
+  
+  <Accordion title="chatHistory() — Access chat history">
+    ```php
+    $history = $agent->chatHistory();
+    $messageCount = $history->count();
+    ```
+  </Accordion>
+  
+  <Accordion title="lastMessage() — Get last message">
+    ```php
+    $last = $agent->lastMessage();
+    echo $last->getRole();    // 'assistant'
+    echo $last->getContent(); // Response text
+    ```
+  </Accordion>
+  
+  <Accordion title="currentMessage() — Get message being processed">
+    ```php
+    $current = $agent->currentMessage();
+    ```
+  </Accordion>
+  
+  <Accordion title="getTools() — List registered tools">
+    ```php
+    foreach ($agent->getTools() as $tool) {
+        echo $tool->getName();
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="getChatKeys() — Get all session keys">
+    ```php
+    $keys = $agent->getChatKeys();
+    // Returns: ["user-1", "user-2", "user-3"]
+    ```
+  </Accordion>
+  
+  <Accordion title="getProviderName() — Get provider name">
+    ```php
+    $provider = $agent->getProviderName();
+    // Returns: "openai"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Structured Output
+
+For predictable, type-safe responses, you can define a response schema. The agent will return data matching your defined structure instead of free-form text.
+
+```php
+
+class ProductExtractor extends Agent
+{
+    protected $responseSchema = ProductInfo::class;
+}
+
+$product = ProductExtractor::ask('Extract: iPhone 15 Pro costs $999');
+
+// Returns a ProductInfo instance
+echo $product->name;   // 'iPhone 15 Pro'
+echo $product->price;  // 999
+
+```
+
+<Card title="Structured Output" icon="brackets-curly" href="/v1/responses/structured-output">
+  Learn how to define schemas and work with DataModels for type-safe responses.
+</Card>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Streaming" icon="wave-pulse" href="/v1/responses/streaming">
+    Stream responses in real-time for better UX.
+  </Card>
+  <Card title="Structured Output" icon="brackets-curly" href="/v1/responses/structured-output">
+    Get type-safe, predictable responses with schemas.
+  </Card>
+</CardGroup>

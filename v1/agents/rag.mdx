@@ -1,0 +1,106 @@
+---
+title: "RAG"
+description: "Guide about implementation of Retrival Augmented Generation in LarAgent."
+---
+
+LarAgent doesn't contain any built-in Implementations of RAG,
+instead it gives you a solid foundation and a frame
+to inject your prefered RAG approach elegantly
+
+<Note>
+  Since there are multiple approaches and multiple implementations per each
+  (including in PHP), we decided to not reinvent the wheel. For more info check
+  RAG section in [Guides](/guides/introduction).
+</Note>
+
+## Prompt method of an Agent
+
+The best place to inject your RAG solution is the `prompt` method of Agent class,
+which initially looks like this:
+
+```php
+public function prompt($message)
+{
+    return $message;
+}
+```
+
+When using Agent, the message from `respond` method is going through prompt method at first,
+so here you can mutate/enhance the user message as well as **query the database** for extra context.
+
+Let's imagine we have (any type of) RAG implemented as `RetrivalService` with `Search` method.
+
+```php highlight={7}
+use App\Services\RetrivalService;
+
+// ...
+
+public function prompt($message)
+{
+    $results = RetrivalService::search($message);
+
+    return $message;
+}
+```
+
+Additionally, we can format it as well structured context using blade template:
+
+```php highlight={8}
+use App\Services\RetrivalService;
+
+// ...
+
+public function prompt($message)
+{
+    $results = RetrivalService::search($message);
+    $context = view('prompts.rag_context', ["result" => $results]);
+
+    return $message;
+}
+```
+
+The most comfortable way to add given context in chat sequence,
+is the "Developer" message role, since it is allowed to be added in any point
+at chat history sequence as well as doesn't requires any further maintenance
+
+```php highlight={2,10-12}
+use App\Services\RetrivalService;
+use LarAgent\Messages\DeveloperMessage;
+
+// ...
+
+public function prompt($message)
+{
+    $results = RetrivalService::search($message);
+    $context = view('prompts.rag_context', ["result" => $results])->render();
+    $devMsg = new DeveloperMessage(view('prompts.support_agent_context', [
+        'documents' => $docs,
+    ])->render());
+
+    return $message;
+}
+```
+
+And the only thing we are still missing is actual passing
+the $devMsg to the chat history, which is pretty simple:
+
+```php highlight={13}
+use App\Services\RetrivalService;
+use LarAgent\Messages\DeveloperMessage;
+
+// ...
+
+public function prompt($message)
+{
+    $results = RetrivalService::search($message);
+    $context = view('prompts.rag_context', ["result" => $results])->render();
+    $devMsg = new DeveloperMessage(view('prompts.support_agent_context', [
+        'documents' => $docs,
+    ])->render());
+    $this->chatHistory()->addMessage($devMsg);
+
+    return $message;
+}
+```
+
+That's it! Your agent now has needed context to answer the user's question! For more specific types of RAG implementations please check the [Guides](/guides/introduction).

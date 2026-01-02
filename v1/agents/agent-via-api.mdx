@@ -1,0 +1,235 @@
+---
+title: "Expose Agents via API"
+description: "This document describes the feature introduced in the v0.5 and explains how to expose your agents through an OpenAI-compatible endpoint."
+---
+
+## Expose API in Laravel
+
+`LarAgent\API\Completions` handles OpenAI compatible chat completion requests. 
+The class expects a valid `Illuminate\Http\Request` and an agent class name:
+
+```php
+use LarAgent\API\Completions;
+
+public function completion(Request $request)
+{
+    $response = Completions::make($request, MyAgent::class);
+    // Your code
+}
+```
+Where `$response` is either an `array` (For non-streaming responses) or a `Generator` with chunks (for streaming responses).
+
+<Note>
+When exposing agents via API, we are using [Phantom Tools](/v1/tools/phantom-tools) internally to handle tool calls by your client application rather than executed server-side.
+</Note>
+
+### Base Controllers
+
+To not bother you with building the controllers with `Completions` class we create abstract classes,
+So that you can use the provided base controllers to create endpoints quickly by extending them.
+
+<Note>
+Both controllers implement a `completion(Request $request)` method that delegates work to `Completions::make()` 
+and automatically handles SSE streaming or JSON responses compatible with OpenAI API.
+</Note>
+
+#### SingleAgentController
+
+Simple controller for exposing a single agent providing `completion` and `models` methods.
+
+Once you have your agent created, 3 steps is enough to expose it via API.
+
+Extend [`SingleAgentController`](https://github.com/MaestroError/LarAgent/tree/main/src/API/Completion/Controllers/SingleAgentController.php) when exposing a single agent:
+1. Set `protected ?string $agentClass` property to specify the agent class.
+2. Set `protected ?array $models` property to specify the models.
+
+Controller Example:
+```php
+namespace App\Http\Controllers;
+
+use LarAgent\API\Completion\Controllers\SingleAgentController;
+
+class MyAgentApiController extends SingleAgentController
+{
+    protected ?string $agentClass = \App\AiAgents\MyAgent::class;
+    protected ?array $models = ['gpt-4o-mini'];
+}
+```
+3. Define the API routes in your Laravel application
+
+Routes example:
+
+```php
+Route::post('/v1/chat/completions', [MyAgentApiController::class, 'completion']);
+Route::get('/v1/models', [MyAgentApiController::class, 'models']);
+```
+
+
+
+#### MultiAgentController
+
+When several agents share one endpoint extend [`MultiAgentController`](https://github.com/MaestroError/LarAgent/tree/main/src/API/Completion/Controllers/MultiAgentController.php):
+
+1. Set `protected ?array $agents` property to specify the agent classes.
+2. Set `protected ?array $models` property to specify the models.
+
+```php
+namespace App\Http\Controllers;
+
+use LarAgent\API\Completion\Controllers\MultiAgentController;
+
+class AgentsController extends MultiAgentController
+{
+    protected ?array $agents = [
+        \App\AiAgents\ChatAgent::class,
+        \App\AiAgents\SupportAgent::class,
+    ];
+
+    protected ?array $models = [
+        'ChatAgent/gpt-4o-mini',
+        'SupportAgent/gpt-4.1-mini',
+        'SupportAgent',
+    ];
+}
+```
+The client specifies `model` as `AgentName/model` or as `AgentName` (Default model is used defined in Agent class or provider).
+
+3. Define the API routes in your Laravel application
+
+Routes example:
+
+```php
+Route::post('/v1/chat/completions', [AgentsController::class, 'completion']);
+Route::get('/v1/models', [AgentsController::class, 'models']);
+```
+
+### Storing chat histories
+
+Since the most of clients manage the chat history on their side, this method **is not necessary**
+if you don't want to store chats.
+
+Without this method, the session id will be random string per each request, 
+you can easily set "in_memory" as a chat history type of your exposed agent and forget about it.
+
+But if you want to store the chat histories and maintain the state on your side, 
+you will need to set the session id for the agent using `setSessionId` method in `SingleAgentController` or `MultiAgentController`.
+
+```php
+// @return string
+protected function setSessionId()
+{
+    $user = auth()->user();
+    if ($user) {
+        return (string) $user->id;
+    }
+    return "OpenWebUi-LarAgent";
+}
+```
+### Streaming response
+
+Streaming responses are sent as Server-Sent Events where each event contains a JSON chunk matching OpenAI's streaming format.
+Including `"stream": true` in request returns a `text/event-stream` where each chunk matches the OpenAI format and includes:
+```php
+echo "event: chunk\n";
+echo 'data: '.json_encode($chunk)."\n\n";
+```
+
+Example of chunk:
+```json
+{
+    "id": "ApiAgent_OpenWebUi-LarAgent",
+    "object": "chat.completion.chunk",
+    "created": 1753446654,
+    "model": "gpt-4.1-nano",
+    "choices": [
+        {
+            "index": 0,
+            "delta": {
+                "role": "assistant",
+                "content": " can"
+            },
+            "logprobs": null,
+            "finish_reason": null
+        }
+    ],
+    "usage": null
+}
+```
+<Warning>
+    Note that the `usage` data is included only in the last chunk as in OpenAI API.
+</Warning>
+
+Use either controller according to your needs and point your OpenAI compatible client to these routes.
+
+
+### Calling from a Custom Controller
+
+If you need more control you may call `Completions::make()` directly:
+
+```php
+use Illuminate\Http\Request;
+use LarAgent\API\Completions;
+
+class CustomController
+{
+    public function chat(Request $request)
+    {
+        $response = Completions::make($request, \App\AiAgents\MyAgent::class);
+
+        if ($response instanceof \Generator) {
+            // stream Server-Sent Events
+            return response()->stream(function () use ($response) {
+                foreach ($response as $chunk) {
+                    echo "event: chunk\n";
+                    echo 'data: '.json_encode($chunk)."\n\n";
+                    ob_flush();
+                    flush();
+                }
+            }, 200, ['Content-Type' => 'text/event-stream']);
+        }
+
+        return response()->json($response);
+    }
+}
+```
+
+For more references see [Completions](https://github.com/MaestroError/LarAgent/tree/main/src/API/Completions.php), [SingleAgentController](https://github.com/MaestroError/LarAgent/tree/main/src/API/Completion/Controllers/SingleAgentController.php), [MultiAgentController](https://github.com/MaestroError/LarAgent/tree/main/src/API/Completion/Controllers/MultiAgentController.php).
+
+### Example Request
+
+```bash
+curl -X POST /v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "model": "MyAgent/gpt-4o-mini",
+        "messages": [
+            {"role":"user","content":"Hello"}
+        ],
+      }'
+```
+
+### Example Response
+
+```json
+{
+  "id": "MyAgent_abcd1234",
+  "object": "chat.completion",
+  "created": 1753357877,
+  "model": "gpt-4o-mini",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Hi!"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 5,
+    "completion_tokens": 10,
+    "total_tokens": 15
+  }
+}
+```
