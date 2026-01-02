@@ -61,7 +61,6 @@
               },
               {
                 "group": "Context (Storage)",
-                "expanded": false,
                 "pages": [
                   "v1/context/overview",
                   "v1/context/identity",
@@ -233,5 +232,13 @@
       "linkedin": "https://www.linkedin.com/company/laragent",
       "discord": "https://discord.gg/NAczq2T9F8"
     }
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude"
+    ]
   }
 }
