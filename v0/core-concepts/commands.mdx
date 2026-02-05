@@ -38,7 +38,25 @@ The interactive chat session provides the following capabilities:
 - Send messages to your agent
 - Get responses in real-time
 - Use any tools configured for the agent
+- **View response completion time** after each agent response
 - Type 'exit' to end the chat session
+
+### Completion Time Display
+
+After each response, the command displays how long the agent took to respond:
+
+```
+TestAgent:
+Hello! How can I help you today?
+
+Response completed in 1.35 seconds.
+
+You:
+```
+
+<Tip>
+Completion time is shown in milliseconds for sub-second responses, and in seconds (with 2 decimal places) for longer responses. This helps you monitor latency and performance during development.
+</Tip>
 
 This is particularly useful for testing your agent's functionality and behavior directly from the command line without needing to implement a full UI.
 
