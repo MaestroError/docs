@@ -46,6 +46,23 @@ echo $weather->temperature; // 18.5
 echo $weather->condition;   // 'Partly cloudy'
 ```
 
+### Using with Claude
+
+Structured output works seamlessly with Claude models:
+
+```php
+class PersonExtractor extends Agent
+{
+    protected $provider = 'claude';
+    protected $model = 'claude-sonnet-4-20250514';
+    protected $responseSchema = PersonData::class;
+}
+
+$data = PersonExtractor::make()->respond('John Smith is 35 and lives in NYC');
+$data->toArray();
+// Returns: ['name' => 'John Smith', 'age' => 35, 'city' => 'NYC']
+```
+
 ---
 
 ## Setting Up Schemas
