@@ -21,6 +21,7 @@ Tool classes are standalone PHP classes that encapsulate tool logic. They're ide
 namespace App\AiTools;
 
 use LarAgent\Tool;
+use LarAgent\Core\Abstractions\DataModel;
 
 class WeatherTool extends Tool
 {
@@ -42,7 +43,7 @@ class WeatherTool extends Tool
 
     protected array $required = ['location'];
 
-    public function execute(array $input): mixed
+    protected function handle(array|DataModel $input): mixed
     {
         $location = $input['location'];
         $unit = $input['unit'] ?? 'celsius';
@@ -51,6 +52,10 @@ class WeatherTool extends Tool
     }
 }
 ```
+
+<Info>
+The `handle()` method replaces `execute()` for class-based tools from v1.2. It provides automatic DataModel and Enum conversion. The `execute()` method still works for backward compatibility.
+</Info>
 
 ### Registering Tool Classes
 
@@ -94,6 +99,7 @@ $agent->withTool(new WeatherTool());
 | `$description` | `string` | Description shown to the LLM |
 | `$properties` | `array` | Parameter definitions with types and descriptions |
 | `$required` | `array` | List of required parameter names |
+| `$dataModelClass` | `?string` | DataModel class to use as the tool's input schema |
 | `$metaData` | `array` | Optional metadata (not sent to LLM) |
 
 ### Property Definitions
@@ -110,6 +116,78 @@ protected array $properties = [
 ];
 ```
 
+### Using DataModel as Input Schema
+
+Define your entire tool schema using a DataModel class:
+
+```php
+use LarAgent\Tool;
+use LarAgent\Core\Abstractions\DataModel;
+
+class TaskDataModel extends DataModel
+{
+    public string $title;
+    public int $estimatedHours;
+    public ?string $description = null;
+}
+
+class CreateTaskTool extends Tool
+{
+    protected string $name = 'create_task';
+    protected string $description = 'Create a new task';
+    
+    // Automatically populates all properties from TaskDataModel
+    protected ?string $dataModelClass = TaskDataModel::class;
+    
+    protected function handle(array|DataModel $input): mixed
+    {
+        // $input is already a TaskDataModel instance!
+        $task = $input;
+        return "Task '{$task->title}' created with {$task->estimatedHours} hours.";
+    }
+}
+```
+
+### DataModel in Properties Array
+
+Mix DataModel classes directly in your `$properties` array:
+
+```php
+class PersonDataModel extends DataModel
+{
+    public string $name;
+    public string $email;
+}
+
+class AddressDataModel extends DataModel
+{
+    public string $street;
+    public string $city;
+}
+
+class ScheduleMeetingTool extends Tool
+{
+    protected string $name = 'schedule_meeting';
+    protected string $description = 'Schedule a meeting';
+    
+    protected array $properties = [
+        'title' => ['type' => 'string'],
+        'attendee' => PersonDataModel::class,  // Auto-expanded!
+        'location' => AddressDataModel::class, // Auto-expanded!
+    ];
+    
+    protected array $required = ['title', 'attendee', 'location'];
+    
+    protected function handle(array|DataModel $input): mixed
+    {
+        // DataModel properties are automatically converted!
+        $attendee = $input['attendee'];  // PersonDataModel instance
+        $location = $input['location'];  // AddressDataModel instance
+        
+        return "Meeting '{$input['title']}' scheduled with {$attendee->name}";
+    }
+}
+```
 
 ---
 
@@ -155,8 +233,45 @@ class MyAgent extends Agent
 ```php
 Tool::create(string $name, string $description)
     ->addProperty(string $name, string $type, string $description, ?array $enum = null)
+    ->addDataModelAsProperties(string $dataModelClass)
     ->setRequired(string|array $properties)
     ->setCallback(callable $callback);
+```
+
+### Using DataModel with Inline Tools
+
+Use `addProperty()` with a DataModel class as the type:
+
+```php
+use LarAgent\Tool;
+
+$tool = Tool::create('schedule_meeting', 'Schedule a meeting')
+    ->addProperty('title', 'string', 'Meeting title')
+    ->addProperty('attendee', PersonDataModel::class)  // DataModel as type!
+    ->addProperty('location', AddressDataModel::class) // DataModel as type!
+    ->setRequired(['title', 'attendee', 'location'])
+    ->setCallback(function (string $title, PersonDataModel $attendee, AddressDataModel $location) {
+        return "Meeting '{$title}' scheduled with {$attendee->name} at {$location->city}";
+    });
+```
+
+Or use `addDataModelAsProperties()` to use an entire DataModel as your tool's input:
+
+```php
+use LarAgent\Tool;
+
+class TaskDataModel extends DataModel
+{
+    public string $title;
+    public int $estimatedHours;
+    public ?string $description = null;
+}
+
+$tool = Tool::create('create_task', 'Create a task')
+    ->addDataModelAsProperties(TaskDataModel::class)
+    ->setCallback(function (TaskDataModel $task) {
+        return "Task '{$task->title}' created with {$task->estimatedHours} hours.";
+    });
 ```
 
 ### Callback Options

@@ -145,10 +145,97 @@ class TenantSupportAgent extends Agent
 ```
 
 <Warning>
-The group setting applies to **all** storages by default. To use different groups for specific storages (e.g., group usage but not chat history), override `createChatHistory()` or `createUsageStorage()` with a custom identity.
+The group setting applies to **all** storages by default. To use different scopes for chat history vs usage tracking, use the custom identity override methods below.
 </Warning>
 
-<Accordion title="Custom identity for specific storage">
+## Custom Identity Overrides
+
+Override identity creation methods to customize how chat history and usage tracking are scoped. This is useful for multi-tenant applications, team-based sharing, or any scenario requiring different storage isolation.
+
+### Overriding History Identity
+
+Use `createHistoryIdentity()` to customize chat history scoping:
+
+```php
+use LarAgent\Context\SessionIdentity;
+
+class TeamAgent extends Agent
+{
+    // Share chat history across team members
+    protected function createHistoryIdentity(): SessionIdentity
+    {
+        return new SessionIdentity(
+            agentName: $this->name(),
+            chatName: $this->getTeamId(), // Share history across team
+        );
+    }
+    
+    private function getTeamId(): string
+    {
+        return auth()->user()->team_id;
+    }
+}
+```
+
+### Overriding Usage Identity
+
+Use `createUsageIdentity()` to customize usage tracking scoping:
+
+```php
+use LarAgent\Context\SessionIdentity;
+
+class OrganizationAgent extends Agent
+{
+    // Track usage at organization level
+    protected function createUsageIdentity(): SessionIdentity
+    {
+        return new SessionIdentity(
+            agentName: $this->name(),
+            chatName: 'org-' . $this->getOrganizationId(),
+        );
+    }
+    
+    private function getOrganizationId(): string
+    {
+        return auth()->user()->organization_id;
+    }
+}
+```
+
+### Dual Identity (Different Scopes)
+
+Use different scopes for history and usage:
+
+```php
+use LarAgent\Context\SessionIdentity;
+
+class MultiTenantAgent extends Agent
+{
+    // Chat history scoped to team
+    protected function createHistoryIdentity(): SessionIdentity
+    {
+        return new SessionIdentity(
+            agentName: $this->name(),
+            chatName: 'team-' . $this->getTeamId(),
+        );
+    }
+    
+    // Usage tracking scoped to organization
+    protected function createUsageIdentity(): SessionIdentity
+    {
+        return new SessionIdentity(
+            agentName: $this->name(),
+            chatName: 'org-' . $this->getOrganizationId(),
+        );
+    }
+}
+```
+
+<Tip>
+Use `createHistoryIdentity()` and `createUsageIdentity()` for simple identity customization. For full control over storage creation (including drivers and options), override `createChatHistory()` or `createUsageStorage()` instead.
+</Tip>
+
+<Accordion title="Advanced: Full storage override">
 ```php
 use LarAgent\Context\SessionIdentity;
 use LarAgent\Context\Storages\ChatHistoryStorage;
@@ -157,7 +244,7 @@ class MyAgent extends Agent
 {
     protected $group = 'shared-group'; // Default group for all storages
     
-    // Override to use agent-specific identity for chat history (no grouping)
+    // Full control over chat history storage creation
     public function createChatHistory()
     {
         $identity = new SessionIdentity(
@@ -176,7 +263,7 @@ class MyAgent extends Agent
 }
 ```
 
-Or, alternatively, you can override to set group only for specific storage instead using $group property.
+Use this approach when you need full control over storage configuration, such as custom drivers or storage options.
 
 </Accordion>
 
